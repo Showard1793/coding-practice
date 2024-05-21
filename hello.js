@@ -4,7 +4,14 @@ Enter your code on line 7 to print 'Hello, World!'
 to the console (the panel on the right)
 */
 
-console.log("Hello");
+console.log("Hello, World!");
+console.log("5");
+console.log(5+3)
+console.log("Hi"); console.log("Hey");
+console.log("Hey","Okay");
+console.log('Thats is so "cool"');
+
+
 
 /*  
 Next, PLAY! 
