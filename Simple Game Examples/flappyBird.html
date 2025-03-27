@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Bird Clone</title>
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        canvas {
+            border: 2px solid black;
+            background-color: #70c5ce;
+            display: none;
+            margin-top: 20px; 
+        }
+        h1 {
+            margin-bottom: 10px;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Flappy Bird Clone</h1>
+    <button class="btn" onclick="startGame()">Start</button>
+    <button class="btn" onclick="restartGame()" style="display: none;">Restart</button>
+    <canvas id="gameCanvas" width="400" height="500"></canvas>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const startButton = document.querySelector("button:nth-of-type(1)");
+        const restartButton = document.querySelector("button:nth-of-type(2)");
+
+        let bird, gravity, jumpStrength, pipes, pipeWidth, pipeGap, gameOver, score;
+        let gameInterval, pipeInterval;
+
+        function initializeGame() {
+            bird = { x: 50, y: 250, radius: 15, velocity: 0 };
+            gravity = 0.5;
+            jumpStrength = -8;
+            pipes = [];
+            pipeWidth = 50;
+            pipeGap = 120;
+            gameOver = false;
+            score = 0;
+        }
+
+        function startGame() {
+            initializeGame();
+            canvas.style.display = "block";
+            startButton.style.display = "none";
+            restartButton.style.display = "none";
+            document.addEventListener("keydown", jump);
+            gameInterval = setInterval(updateGame, 20);
+            pipeInterval = setInterval(createPipe, 2000);
+        }
+
+        function restartGame() {
+            clearInterval(gameInterval);
+            clearInterval(pipeInterval);
+            startGame();
+        }
+
+        function jump(event) {
+            if (event.code === "Space" && !gameOver) {
+                bird.velocity = jumpStrength;
+            }
+        }
+
+        function createPipe() {
+            let pipeHeight = Math.floor(Math.random() * (canvas.height - pipeGap - 100)) + 50;
+            pipes.push({ x: canvas.width, height: pipeHeight });
+        }
+
+        function updateGame() {
+            if (gameOver) return;
+
+            bird.velocity += gravity;
+            bird.y += bird.velocity;
+
+            if (bird.y >= canvas.height || bird.y <= 0) {
+                endGame();
+            }
+
+            for (let i = 0; i < pipes.length; i++) {
+                pipes[i].x -= 2;
+
+                if (pipes[i].x + pipeWidth < 0) {
+                    pipes.splice(i, 1);
+                    score++;
+                }
+
+                if (
+                    bird.x + bird.radius > pipes[i].x &&
+                    bird.x - bird.radius < pipes[i].x + pipeWidth &&
+                    (bird.y - bird.radius < pipes[i].height ||
+                        bird.y + bird.radius > pipes[i].height + pipeGap)
+                ) {
+                    endGame();
+                }
+            }
+
+            drawGame();
+        }
+
+        function drawGame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = "yellow";
+            ctx.beginPath();
+            ctx.arc(bird.x, bird.y, bird.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = "green";
+            for (let pipe of pipes) {
+                ctx.fillRect(pipe.x, 0, pipeWidth, pipe.height);
+                ctx.fillRect(pipe.x, pipe.height + pipeGap, pipeWidth, canvas.height - pipe.height - pipeGap);
+            }
+
+            ctx.fillStyle = "black";
+            ctx.font = "20px Arial";
+            ctx.fillText("Score: " + score, 10, 25);
+        }
+
+        function endGame() {
+            gameOver = true;
+            clearInterval(gameInterval);
+            clearInterval(pipeInterval);
+            document.removeEventListener("keydown", jump);
+
+            ctx.fillStyle = "red";
+            ctx.font = "30px Arial";
+            ctx.fillText("Game Over!", canvas.width / 2 - 70, canvas.height / 2);
+
+            restartButton.style.display = "inline-block";
+        }
+    </script>
+
+</body>
+</html>
