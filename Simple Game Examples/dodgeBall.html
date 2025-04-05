@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dodgeball Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      background: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const player = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      size: 30,
+      speed: 4,
+      dx: 0,
+      dy: 0,
+    };
+
+    const balls = [];
+
+    function createBall() {
+      const size = 20;
+      let x, y, vx, vy;
+
+      const edge = Math.floor(Math.random() * 4);
+      switch (edge) {
+        case 0: // top
+          x = Math.random() * canvas.width;
+          y = -size;
+          vx = (Math.random() - 0.5) * 8;
+          vy = Math.random() * 4 + 2;
+          break;
+        case 1: // bottom
+          x = Math.random() * canvas.width;
+          y = canvas.height + size;
+          vx = (Math.random() - 0.5) * 4;
+          vy = -(Math.random() * 2 + 1);
+          break;
+        case 2: // left
+          x = -size;
+          y = Math.random() * canvas.height;
+          vx = Math.random() * 2 + 1;
+          vy = (Math.random() - 0.5) * 4;
+          break;
+        case 3: // right
+          x = canvas.width + size;
+          y = Math.random() * canvas.height;
+          vx = -(Math.random() * 2 + 1);
+          vy = (Math.random() - 0.5) * 4;
+          break;
+      }
+
+      balls.push({ x, y, vx, vy, size });
+    }
+
+    function drawPlayer() {
+      ctx.fillStyle = "blue";
+      ctx.fillRect(player.x, player.y, player.size, player.size);
+    }
+
+    function drawBalls() {
+      ctx.fillStyle = "red";
+      balls.forEach(ball => {
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function movePlayer() {
+      player.x += player.dx;
+      player.y += player.dy;
+
+      // boundaries
+      if (player.x < 0) player.x = 0;
+      if (player.y < 0) player.y = 0;
+      if (player.x + player.size > canvas.width) player.x = canvas.width - player.size;
+      if (player.y + player.size > canvas.height) player.y = canvas.height - player.size;
+    }
+
+    function moveBalls() {
+      balls.forEach(ball => {
+        ball.x += ball.vx;
+        ball.y += ball.vy;
+      });
+    }
+
+    function checkCollision(ball) {
+      return (
+        player.x < ball.x + ball.size &&
+        player.x + player.size > ball.x - ball.size &&
+        player.y < ball.y + ball.size &&
+        player.y + player.size > ball.y - ball.size
+      );
+    }
+
+    function update() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      movePlayer();
+      moveBalls();
+
+      drawPlayer();
+      drawBalls();
+
+      for (let ball of balls) {
+        if (checkCollision(ball)) {
+          alert("Game Over!");
+          document.location.reload();
+          return;
+        }
+      }
+
+      requestAnimationFrame(update);
+    }
+
+    function keyDown(e) {
+      if (e.key === "ArrowRight") player.dx = player.speed;
+      if (e.key === "ArrowLeft") player.dx = -player.speed;
+      if (e.key === "ArrowUp") player.dy = -player.speed;
+      if (e.key === "ArrowDown") player.dy = player.speed;
+    }
+
+    function keyUp(e) {
+      if (
+        e.key === "ArrowRight" ||
+        e.key === "ArrowLeft"
+      ) player.dx = 0;
+
+      if (
+        e.key === "ArrowUp" ||
+        e.key === "ArrowDown"
+      ) player.dy = 0;
+    }
+
+    document.addEventListener("keydown", keyDown);
+    document.addEventListener("keyup", keyUp);
+
+    setInterval(createBall, 300);
+    update();
+  </script>
+</body>
+</html>
