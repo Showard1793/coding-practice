@@ -6,19 +6,30 @@ const keys = {};
 const speed = 2;
 
 // Utility for primary colors
-const PRIMARY_COLORS = ["blue", "green", "yellow", "cyan", "magenta", "orange"];
+//const PRIMARY_COLORS = ["blue", "green", "yellow", "cyan", "magenta", "orange"];
+const PRIMARY_COLORS = ["white"];
 
 let playerRotation = 0;
 let targetRotation = 0;
 let rotating = false;
 let rotationStartTime = 0;
-const ROTATION_DURATION = 500; // in milliseconds
+const ROTATION_DURATION = 150; // in milliseconds
+
+let isDashing = false;
+let dashCooldown = false;
+let dashDuration = 300; // milliseconds
+let dashCooldownDuration = 500; // milliseconds
+let dashSpeed = 8;
+let normalSpeed = 3;
+let dashStartTime = 0;
+let playerInvincible = false;
 
 
 // Player object: made up of "blocks"
 let player = {
   blocks: [{ x: 100, y: 100 }],
-  color: "red"
+  color: "#666666", // dark gray
+  speed: normalSpeed
 };
 
 // Tetris pieces (each has blocks and a color)
@@ -51,19 +62,59 @@ function randomPrimaryColor() {
 // Handle input
 document.addEventListener("keydown", (e) => keys[e.key] = true);
 document.addEventListener("keyup", (e) => keys[e.key] = false);
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space" && !isDashing && !dashCooldown) {
+    startDash();
+  }
+});
 
 function movePlayer() {
   let dx = 0, dy = 0;
-  if (keys["w"]) dy = -speed;
-  if (keys["s"]) dy = speed;
-  if (keys["a"]) dx = -speed;
-  if (keys["d"]) dx = speed;
+  if (keys["w"]) dy = -player.speed;
+if (keys["s"]) dy = player.speed;
+if (keys["a"]) dx = -player.speed;
+if (keys["d"]) dx = player.speed;
 
   for (let block of player.blocks) {
     block.x += dx;
     block.y += dy;
   }
 }
+
+function startDash() {
+  isDashing = true;
+  dashCooldown = true;
+  dashStartTime = performance.now();
+  player.speed = dashSpeed;
+  playerInvincible = true;
+  player.originalColor = player.color;
+  player.color = "white"
+
+  setTimeout(() => {
+    isDashing = false;
+    player.speed = normalSpeed;
+    playerInvincible = false;
+    player.color = player.originalColor;
+  }, dashDuration);
+
+  setTimeout(() => {
+    dashCooldown = false;
+  }, dashCooldownDuration);
+}
+
+function lightenColor(color, percent) {
+  const colorMap = {
+    red: "rgb(255, 150, 150)",
+    blue: "rgb(150, 150, 255)",
+    green: "rgb(150, 255, 150)",
+    yellow: "rgb(255, 255, 200)",
+    cyan: "rgb(200, 255, 255)",
+    magenta: "rgb(255, 200, 255)",
+    orange: "rgb(255, 200, 150)"
+  };
+  return colorMap[color] || color;
+}
+
 
 function rotatePlayer() {
   if (rotating) return; // Don't rotate if already rotating
