@@ -16,7 +16,7 @@ let isDashing = false;
 let dashCooldown = false;
 let dashDuration = 300;
 let dashCooldownDuration = 500;
-let dashSpeed = 8;
+let dashSpeed = 8.5;
 let normalSpeed = 3;
 let dashStartTime = 0;
 let playerInvincible = false;
@@ -229,7 +229,7 @@ canvas.addEventListener("click", (e) => {
   const dy = mouseY - playerCenterY;
   const length = Math.sqrt(dx * dx + dy * dy);
 
-  const speed = 5;
+  const speed = 15;
   const vx = (dx / length) * speed;
   const vy = (dy / length) * speed;
 
@@ -267,10 +267,12 @@ function draw() {
   ctx.save();
   ctx.translate(pivot.x + TILE_SIZE / 2, pivot.y + TILE_SIZE / 2);
   ctx.rotate(playerRotation);
-  for (let block of player.blocks) {
+  for (let i = 0; i < player.blocks.length; i++) {
+    const block = player.blocks[i];
     const dx = block.x - pivot.x;
     const dy = block.y - pivot.y;
-    drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, player.color);
+    const color = i === 0 ? "#d2b48c" : player.color; // Beige center block
+    drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, color);
   }
   ctx.restore();
 
@@ -284,6 +286,7 @@ function draw() {
   // Draw projectiles
   drawProjectiles();
 }
+
 
 function updateRotation() {
   if (!rotating) return;
