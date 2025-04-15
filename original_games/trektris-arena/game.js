@@ -112,6 +112,7 @@ function draw() {
   }
 }
 
+
 function updateRotation() {
   if (!rotating) return;
 
@@ -151,6 +152,10 @@ function updateRotation() {
 function checkCollisions() {
   for (let i = tetrisPieces.length - 1; i >= 0; i--) {
     let piece = tetrisPieces[i];
+    let bestGap = null;
+    let bestDirection = null;
+
+    // Track the minimal gap for collision resolution
     for (let pBlock of player.blocks) {
       for (let tBlock of piece.blocks) {
         if (
@@ -159,15 +164,80 @@ function checkCollisions() {
           pBlock.y < tBlock.y + TILE_SIZE &&
           pBlock.y + TILE_SIZE > tBlock.y
         ) {
-          // Collision! Merge the blocks
-          player.blocks.push(...piece.blocks);
-          tetrisPieces.splice(i, 1);
-          return;
+          // Collision detected, calculate the gap
+          const dx = tBlock.x - pBlock.x;
+          const dy = tBlock.y - pBlock.y;
+
+          // Calculate the overlaps on the x and y axis
+          const xOverlap = TILE_SIZE - Math.abs(dx);
+          const yOverlap = TILE_SIZE - Math.abs(dy);
+
+          // Determine which axis has the smallest overlap (which axis to adjust)
+          if (xOverlap < yOverlap) {
+            bestGap = dx > 0 ? -xOverlap : xOverlap;
+            bestDirection = 'x';
+          } else {
+            bestGap = dy > 0 ? -yOverlap : yOverlap;
+            bestDirection = 'y';
+          }
+
+          // Break out once we find the smallest gap
+          if (bestGap !== null) break;
         }
       }
+      if (bestGap !== null) break;
+    }
+
+    // If a gap was found, move the entire piece to close it
+    if (bestGap !== null) {
+      // Move all blocks of the Tetris piece to close the gap
+      for (let block of piece.blocks) {
+        if (bestDirection === 'x') {
+          block.x += bestGap;
+        } else {
+          block.y += bestGap;
+        }
+      }
+
+      // Snap the pieces to the grid after adjustment
+      for (let block of piece.blocks) {
+        block.x = Math.round(block.x / TILE_SIZE) * TILE_SIZE;
+        block.y = Math.round(block.y / TILE_SIZE) * TILE_SIZE;
+      }
+
+      // Merge the piece into the player and remove it from the array
+      player.blocks.push(...piece.blocks);
+      tetrisPieces.splice(i, 1);
+
+      // After the merge, adjust the player blocks to ensure no gaps are present
+      adjustPlayerShape();
+
+      return; // Exit after handling one collision
     }
   }
 }
+
+// Adjust the player shape by recalculating its bounding block positions
+function adjustPlayerShape() {
+  // We will take all the merged player blocks and make sure they align properly without gaps
+  let newBlocks = [];
+
+  for (let block of player.blocks) {
+    // Snap each block to the grid to avoid any gaps
+    let snappedX = Math.round(block.x / TILE_SIZE) * TILE_SIZE;
+    let snappedY = Math.round(block.y / TILE_SIZE) * TILE_SIZE;
+    
+    // Store snapped blocks
+    newBlocks.push({ x: snappedX, y: snappedY });
+  }
+
+  // Update the player's blocks with the new snapped blocks
+  player.blocks = newBlocks;
+}
+
+
+
+
 
 function gameLoop() {
   movePlayer();
