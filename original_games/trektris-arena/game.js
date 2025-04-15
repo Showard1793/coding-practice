@@ -80,6 +80,25 @@ document.addEventListener("wheel", (e) => {
   }
 });
 
+//new code
+// Counterclockwise rotation logic
+function rotatePlayerCounterclockwise() {
+  if (rotating) return; // Prevent rotation if already rotating
+
+  rotating = true;
+  rotationStartTime = performance.now();
+  targetRotation -= Math.PI / 2; // Rotate 90 degrees counterclockwise (negative angle)
+}
+
+// Update the mouse wheel event listener to handle both clockwise and counterclockwise rotations
+document.addEventListener("wheel", (e) => {
+  if (e.deltaY > 0) { // Scroll Down
+    rotatePlayer(); // Clockwise rotation (your existing logic)
+  } else { // Scroll Up
+    rotatePlayerCounterclockwise(); // Counterclockwise rotation
+  }
+});
+
 function drawBlock(x, y, color = "black") {
   ctx.fillStyle = color;
   ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
@@ -95,13 +114,28 @@ function draw() {
   const pivot = player.blocks[0];
   ctx.save();
   ctx.translate(pivot.x + TILE_SIZE / 2, pivot.y + TILE_SIZE / 2);
-  ctx.rotate(playerRotation);
-  for (let i = 0; i < player.blocks.length; i++) {
-    const block = player.blocks[i];
-    const dx = block.x - pivot.x;
-    const dy = block.y - pivot.y;
-    drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, player.color);
+
+  // Check if the rotation is clockwise or counterclockwise
+  if (playerRotation >= 0) {
+    // Clockwise rotation
+    ctx.rotate(playerRotation);
+    for (let i = 0; i < player.blocks.length; i++) {
+      const block = player.blocks[i];
+      const dx = block.x - pivot.x;
+      const dy = block.y - pivot.y;
+      drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, player.color);
+    }
+  } else {
+    // Counterclockwise rotation
+    ctx.rotate(playerRotation);
+    for (let i = 0; i < player.blocks.length; i++) {
+      const block = player.blocks[i];
+      const dx = block.x - pivot.x;
+      const dy = block.y - pivot.y;
+      drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, player.color); // Invert dx and dy for counterclockwise
+    }
   }
+
   ctx.restore();
 
   // Draw tetris pieces
@@ -113,6 +147,8 @@ function draw() {
 }
 
 
+
+// Rotation update function that smoothly interpolates the rotation
 function updateRotation() {
   if (!rotating) return;
 
@@ -120,12 +156,12 @@ function updateRotation() {
   const elapsed = now - rotationStartTime;
   const t = Math.min(elapsed / ROTATION_DURATION, 1);
 
-  playerRotation = (targetRotation - Math.PI / 2) + t * (Math.PI / 2);
+  playerRotation = targetRotation * t;
 
   if (t >= 1) {
     rotating = false;
 
-    // Get pivot block
+    // Get pivot block (the center of rotation)
     const pivot = player.blocks[0];
 
     // Rotate every block (including the pivot itself) around the pivot
@@ -133,11 +169,18 @@ function updateRotation() {
       const dx = block.x - pivot.x;
       const dy = block.y - pivot.y;
 
-      const newX = pivot.x - dy;
-      const newY = pivot.y + dx;
-
-      block.x = newX;
-      block.y = newY;
+      // Check the direction of rotation (clockwise or counterclockwise)
+      if (playerRotation >= 0) {  // Clockwise
+        const newX = pivot.x - dy;
+        const newY = pivot.y + dx;
+        block.x = newX;
+        block.y = newY;
+      } else {  // Counterclockwise
+        const newX = pivot.x + dy;
+        const newY = pivot.y - dx;
+        block.x = newX;
+        block.y = newY;
+      }
     }
 
     // Reset the visual rotation, since positions are now updated
@@ -145,7 +188,6 @@ function updateRotation() {
     targetRotation = 0;
   }
 }
-
 
 
 
