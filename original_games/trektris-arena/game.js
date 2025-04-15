@@ -34,23 +34,55 @@ let player = {
 
 // Tetris pieces (each has blocks and a color)
 let tetrisPieces = [
+  // Long horizontal 4x1
   {
     blocks: [
-      { x: 200, y: 200 },
-      { x: 220, y: 200 },
-      { x: 240, y: 200 },
-      { x: 220, y: 220 }
+      { x: 100, y: 200 },
+      { x: 120, y: 200 },
+      { x: 140, y: 200 },
+      { x: 160, y: 200 }
     ],
-    color: randomPrimaryColor()
+    color: "white"
   },
+  // Another long horizontal 4x1
   {
     blocks: [
-      { x: 300, y: 100 },
-      { x: 300, y: 120 },
-      { x: 320, y: 100 },
-      { x: 320, y: 120 }
+      { x: 300, y: 300 },
+      { x: 320, y: 300 },
+      { x: 340, y: 300 },
+      { x: 360, y: 300 }
     ],
-    color: randomPrimaryColor()
+    color: "white"
+  },
+  // L-shaped
+  {
+    blocks: [
+      { x: 200, y: 100 },
+      { x: 220, y: 100 },
+      { x: 240, y: 100 },
+      { x: 240, y: 120 }
+    ],
+    color: "white"
+  },
+  // Square (2x2)
+  {
+    blocks: [
+      { x: 400, y: 100 },
+      { x: 420, y: 100 },
+      { x: 400, y: 120 },
+      { x: 420, y: 120 }
+    ],
+    color: "white"
+  },
+  // T-shaped
+  {
+    blocks: [
+      { x: 500, y: 200 },
+      { x: 520, y: 200 },
+      { x: 540, y: 200 },
+      { x: 520, y: 220 }
+    ],
+    color: "white"
   }
 ];
 
