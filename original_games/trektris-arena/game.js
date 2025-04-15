@@ -54,10 +54,10 @@ document.addEventListener("keyup", (e) => keys[e.key] = false);
 
 function movePlayer() {
   let dx = 0, dy = 0;
-  if (keys["ArrowUp"]) dy = -speed;
-  if (keys["ArrowDown"]) dy = speed;
-  if (keys["ArrowLeft"]) dx = -speed;
-  if (keys["ArrowRight"]) dx = speed;
+  if (keys["w"]) dy = -speed;
+  if (keys["s"]) dy = speed;
+  if (keys["a"]) dx = -speed;
+  if (keys["d"]) dx = speed;
 
   for (let block of player.blocks) {
     block.x += dx;
@@ -74,9 +74,8 @@ function rotatePlayer() {
 }
 
 
-document.addEventListener("keydown", (e) => {
-  keys[e.key] = true;
-  if (e.key === " ") {
+document.addEventListener("wheel", (e) => {
+  if (e.deltaY > 0) {
     rotatePlayer();
   }
 });
