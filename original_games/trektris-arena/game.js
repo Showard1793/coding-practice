@@ -90,10 +90,81 @@ function movePlayer() {
   if (keys["a"]) dx = -player.speed;
   if (keys["d"]) dx = player.speed;
 
-  for (let block of player.blocks) {
-    block.x += dx;
-    block.y += dy;
+  // Try full movement first
+  let proposedBlocks = player.blocks.map(block => ({
+    x: block.x + dx,
+    y: block.y + dy
+  }));
+
+  let collisionDetected = false;
+  for (let block of proposedBlocks) {
+    for (let piece of tetrisPieces) {
+      for (let tBlock of piece.blocks) {
+        if (
+          block.x < tBlock.x + TILE_SIZE &&
+          block.x + TILE_SIZE > tBlock.x &&
+          block.y < tBlock.y + TILE_SIZE &&
+          block.y + TILE_SIZE > tBlock.y
+        ) {
+          collisionDetected = true;
+        }
+      }
+    }
   }
+
+  if (!collisionDetected) {
+    for (let block of player.blocks) {
+      block.x += dx;
+      block.y += dy;
+    }
+  } else {
+    // Fallback: try X-only and Y-only movement separately
+    if (dx !== 0 && dy !== 0) {
+      // Try horizontal only
+      let proposedX = player.blocks.map(block => ({ x: block.x + dx, y: block.y }));
+      let xBlocked = proposedX.some(pb => isColliding(pb));
+
+      if (!xBlocked) {
+        for (let block of player.blocks) block.x += dx;
+      } else {
+        // Try vertical only
+        let proposedY = player.blocks.map(block => ({ x: block.x, y: block.y + dy }));
+        if (!proposedY.some(pb => isColliding(pb))) {
+          for (let block of player.blocks) block.y += dy;
+        }
+      }
+    } else {
+      // Original fallback logic if not diagonal
+      if (dx !== 0) {
+        proposedBlocks = player.blocks.map(block => ({ x: block.x + dx, y: block.y }));
+        if (!proposedBlocks.some(pb => isColliding(pb))) {
+          for (let block of player.blocks) block.x += dx;
+        }
+      } else if (dy !== 0) {
+        proposedBlocks = player.blocks.map(block => ({ x: block.x, y: block.y + dy }));
+        if (!proposedBlocks.some(pb => isColliding(pb))) {
+          for (let block of player.blocks) block.y += dy;
+        }
+      }
+    }
+  }
+}
+
+
+function isColliding(block) {
+  for (let piece of tetrisPieces) {
+    for (let tBlock of piece.blocks) {
+      if (
+        block.x < tBlock.x + TILE_SIZE &&
+        block.x + TILE_SIZE > tBlock.x &&
+        block.y < tBlock.y + TILE_SIZE &&
+        block.y + TILE_SIZE > tBlock.y
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 function startDash() {
@@ -238,46 +309,29 @@ function updateRotation() {
 }
 
 function checkCollisions() {
+  const BUFFER = 4; // pixels of forgiveness
+
   for (let i = tetrisPieces.length - 1; i >= 0; i--) {
-    let piece = tetrisPieces[i];
-    let bestGap = null;
-    let bestDirection = null;
+    const piece = tetrisPieces[i];
+    let shouldMerge = false;
+
     for (let pBlock of player.blocks) {
       for (let tBlock of piece.blocks) {
-        if (
-          pBlock.x < tBlock.x + TILE_SIZE &&
-          pBlock.x + TILE_SIZE > tBlock.x &&
-          pBlock.y < tBlock.y + TILE_SIZE &&
-          pBlock.y + TILE_SIZE > tBlock.y
-        ) {
-          const dx = tBlock.x - pBlock.x;
-          const dy = tBlock.y - pBlock.y;
-          const xOverlap = TILE_SIZE - Math.abs(dx);
-          const yOverlap = TILE_SIZE - Math.abs(dy);
-          if (xOverlap < yOverlap) {
-            bestGap = dx > 0 ? -xOverlap : xOverlap;
-            bestDirection = 'x';
-          } else {
-            bestGap = dy > 0 ? -yOverlap : yOverlap;
-            bestDirection = 'y';
-          }
+        const dx = Math.abs(pBlock.x - tBlock.x);
+        const dy = Math.abs(pBlock.y - tBlock.y);
+
+        const alignedVertically = dx < BUFFER && Math.abs(dy - TILE_SIZE) < BUFFER;
+        const alignedHorizontally = dy < BUFFER && Math.abs(dx - TILE_SIZE) < BUFFER;
+
+        if (alignedVertically || alignedHorizontally) {
+          shouldMerge = true;
           break;
         }
       }
-      if (bestGap !== null) break;
+      if (shouldMerge) break;
     }
 
-    if (bestGap !== null) {
-      for (let block of piece.blocks) {
-        if (bestDirection === 'x') block.x += bestGap;
-        else block.y += bestGap;
-      }
-
-      for (let block of piece.blocks) {
-        block.x = Math.round(block.x / TILE_SIZE) * TILE_SIZE;
-        block.y = Math.round(block.y / TILE_SIZE) * TILE_SIZE;
-      }
-
+    if (shouldMerge) {
       player.blocks.push(...piece.blocks);
       tetrisPieces.splice(i, 1);
       adjustPlayerShape();
@@ -285,6 +339,7 @@ function checkCollisions() {
     }
   }
 }
+
 
 function adjustPlayerShape() {
   let newBlocks = [];
