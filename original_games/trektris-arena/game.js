@@ -1,6 +1,13 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+// Fullscreen setup
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+document.body.style.margin = "0";
+document.body.style.overflow = "hidden";
+document.body.style.backgroundColor = "black";
+
 const TILE_SIZE = 20;
 const keys = {};
 const PRIMARY_COLORS = ["white"];
@@ -14,15 +21,34 @@ const ROTATION_DURATION = 150;
 
 let isDashing = false;
 let dashCooldown = false;
-let dashDuration = 300;
+let dashDuration = 150;
 let dashCooldownDuration = 500;
-let dashSpeed = 8.5;
+let dashSpeed = 12;
 let normalSpeed = 3;
 let dashStartTime = 0;
 let playerInvincible = false;
 
+const stars = Array.from({ length: 150 }, () => ({
+  x: Math.random() * canvas.width,
+  y: Math.random() * canvas.height,
+  radius: Math.random() * 1.5 + 0.5  // radius between 0.5 and 2.0
+}));
+
+function drawStars() {
+  ctx.fillStyle = "white";
+  for (let star of stars) {
+    ctx.beginPath();
+    ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+
 let player = {
-  blocks: [{ x: 100, y: 100 }],
+  blocks: [{
+    x: Math.floor(canvas.width / 2 / TILE_SIZE) * TILE_SIZE,
+    y: Math.floor(canvas.height / 2 / TILE_SIZE) * TILE_SIZE
+  }],
   color: "#666666",
   speed: normalSpeed
 };
@@ -83,6 +109,38 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+window.addEventListener("resize", () => {
+  resizeCanvas();
+  centerPlayer(); // Recenter player on resize
+});
+
+// Call it once to set the initial size
+resizeCanvas();
+
+function centerPlayer() {
+  const centerX = Math.floor(canvas.width / 2 / TILE_SIZE) * TILE_SIZE;
+  const centerY = Math.floor(canvas.height / 2 / TILE_SIZE) * TILE_SIZE;
+
+  const offsetX = centerX - player.blocks[0].x;
+  const offsetY = centerY - player.blocks[0].y;
+
+  player.blocks.forEach(block => {
+    block.x += offsetX;
+    block.y += offsetY;
+  });
+}
+
+function init() {
+  resizeCanvas(); // set size first
+  centerPlayer(); // then center the player
+  update();
+}
+
 function movePlayer() {
   let dx = 0, dy = 0;
   if (keys["w"]) dy = -player.speed;
@@ -90,81 +148,51 @@ function movePlayer() {
   if (keys["a"]) dx = -player.speed;
   if (keys["d"]) dx = player.speed;
 
-  // Try full movement first
   let proposedBlocks = player.blocks.map(block => ({
     x: block.x + dx,
     y: block.y + dy
   }));
 
-  let collisionDetected = false;
-  for (let block of proposedBlocks) {
-    for (let piece of tetrisPieces) {
-      for (let tBlock of piece.blocks) {
-        if (
-          block.x < tBlock.x + TILE_SIZE &&
-          block.x + TILE_SIZE > tBlock.x &&
-          block.y < tBlock.y + TILE_SIZE &&
-          block.y + TILE_SIZE > tBlock.y
-        ) {
-          collisionDetected = true;
-        }
-      }
-    }
-  }
+  let collisionDetected = proposedBlocks.some(pb => isColliding(pb));
 
   if (!collisionDetected) {
     for (let block of player.blocks) {
       block.x += dx;
       block.y += dy;
     }
-  } else {
-    // Fallback: try X-only and Y-only movement separately
-    if (dx !== 0 && dy !== 0) {
-      // Try horizontal only
-      let proposedX = player.blocks.map(block => ({ x: block.x + dx, y: block.y }));
-      let xBlocked = proposedX.some(pb => isColliding(pb));
-
-      if (!xBlocked) {
-        for (let block of player.blocks) block.x += dx;
-      } else {
-        // Try vertical only
-        let proposedY = player.blocks.map(block => ({ x: block.x, y: block.y + dy }));
-        if (!proposedY.some(pb => isColliding(pb))) {
-          for (let block of player.blocks) block.y += dy;
-        }
-      }
+  } else if (dx !== 0 && dy !== 0) {
+    let proposedX = player.blocks.map(block => ({ x: block.x + dx, y: block.y }));
+    if (!proposedX.some(pb => isColliding(pb))) {
+      for (let block of player.blocks) block.x += dx;
     } else {
-      // Original fallback logic if not diagonal
-      if (dx !== 0) {
-        proposedBlocks = player.blocks.map(block => ({ x: block.x + dx, y: block.y }));
-        if (!proposedBlocks.some(pb => isColliding(pb))) {
-          for (let block of player.blocks) block.x += dx;
-        }
-      } else if (dy !== 0) {
-        proposedBlocks = player.blocks.map(block => ({ x: block.x, y: block.y + dy }));
-        if (!proposedBlocks.some(pb => isColliding(pb))) {
-          for (let block of player.blocks) block.y += dy;
-        }
+      let proposedY = player.blocks.map(block => ({ x: block.x, y: block.y + dy }));
+      if (!proposedY.some(pb => isColliding(pb))) {
+        for (let block of player.blocks) block.y += dy;
       }
     }
   }
 }
 
-
 function isColliding(block) {
-  for (let piece of tetrisPieces) {
-    for (let tBlock of piece.blocks) {
-      if (
-        block.x < tBlock.x + TILE_SIZE &&
-        block.x + TILE_SIZE > tBlock.x &&
-        block.y < tBlock.y + TILE_SIZE &&
-        block.y + TILE_SIZE > tBlock.y
-      ) {
-        return true;
-      }
-    }
+  // Boundary check
+  if (
+    block.x < 0 ||
+    block.y < 0 ||
+    block.x + TILE_SIZE > canvas.width ||
+    block.y + TILE_SIZE > canvas.height
+  ) {
+    return true;
   }
-  return false;
+
+  // Collision with tetris pieces
+  return tetrisPieces.some(piece =>
+    piece.blocks.some(tBlock =>
+      block.x < tBlock.x + TILE_SIZE &&
+      block.x + TILE_SIZE > tBlock.x &&
+      block.y < tBlock.y + TILE_SIZE &&
+      block.y + TILE_SIZE > tBlock.y
+    )
+  );
 }
 
 function startDash() {
@@ -215,7 +243,6 @@ function drawBlock(x, y, color = "black") {
   ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
 }
 
-// === Projectile logic ===
 const projectiles = [];
 canvas.addEventListener("click", (e) => {
   const rect = canvas.getBoundingClientRect();
@@ -238,7 +265,7 @@ canvas.addEventListener("click", (e) => {
     y: playerCenterY,
     vx,
     vy,
-    radius: 5
+    length: 10
   });
 });
 
@@ -251,18 +278,27 @@ function updateProjectiles() {
 
 function drawProjectiles() {
   for (let p of projectiles) {
+    const angle = Math.atan2(p.vy, p.vx);
+    const x1 = p.x - Math.cos(angle) * p.length / 2;
+    const y1 = p.y - Math.sin(angle) * p.length / 2;
+    const x2 = p.x + Math.cos(angle) * p.length / 2;
+    const y2 = p.y + Math.sin(angle) * p.length / 2;
+
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-    ctx.fillStyle = "red";
-    ctx.fill();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
   }
 }
-// === End projectile logic ===
 
 function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Draw player
+  drawStars();
+
   const pivot = player.blocks[0];
   ctx.save();
   ctx.translate(pivot.x + TILE_SIZE / 2, pivot.y + TILE_SIZE / 2);
@@ -271,22 +307,25 @@ function draw() {
     const block = player.blocks[i];
     const dx = block.x - pivot.x;
     const dy = block.y - pivot.y;
-    const color = i === 0 ? "#d2b48c" : player.color; // Beige center block
-    drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, color);
+    drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, player.color);
+
+    if (i === 0) {
+      ctx.beginPath();
+      ctx.arc(dx, dy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "black";
+      ctx.fill();
+    }
   }
   ctx.restore();
 
-  // Draw Tetris pieces
   for (let piece of tetrisPieces) {
     for (let block of piece.blocks) {
       drawBlock(block.x, block.y, piece.color);
     }
   }
 
-  // Draw projectiles
   drawProjectiles();
 }
-
 
 function updateRotation() {
   if (!rotating) return;
@@ -312,7 +351,7 @@ function updateRotation() {
 }
 
 function checkCollisions() {
-  const BUFFER = 4; // pixels of forgiveness
+  const BUFFER = 4;
 
   for (let i = tetrisPieces.length - 1; i >= 0; i--) {
     const piece = tetrisPieces[i];
@@ -322,7 +361,6 @@ function checkCollisions() {
       for (let tBlock of piece.blocks) {
         const dx = Math.abs(pBlock.x - tBlock.x);
         const dy = Math.abs(pBlock.y - tBlock.y);
-
         const alignedVertically = dx < BUFFER && Math.abs(dy - TILE_SIZE) < BUFFER;
         const alignedHorizontally = dy < BUFFER && Math.abs(dx - TILE_SIZE) < BUFFER;
 
@@ -343,15 +381,11 @@ function checkCollisions() {
   }
 }
 
-
 function adjustPlayerShape() {
-  let newBlocks = [];
-  for (let block of player.blocks) {
-    let snappedX = Math.round(block.x / TILE_SIZE) * TILE_SIZE;
-    let snappedY = Math.round(block.y / TILE_SIZE) * TILE_SIZE;
-    newBlocks.push({ x: snappedX, y: snappedY });
-  }
-  player.blocks = newBlocks;
+  player.blocks = player.blocks.map(block => ({
+    x: Math.round(block.x / TILE_SIZE) * TILE_SIZE,
+    y: Math.round(block.y / TILE_SIZE) * TILE_SIZE
+  }));
 }
 
 function gameLoop() {
