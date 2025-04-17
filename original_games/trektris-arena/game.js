@@ -28,6 +28,22 @@ let normalSpeed = 3;
 let dashStartTime = 0;
 let playerInvincible = false;
 
+const stars = Array.from({ length: 150 }, () => ({
+  x: Math.random() * canvas.width,
+  y: Math.random() * canvas.height,
+  radius: Math.random() * 1.5 + 0.5  // radius between 0.5 and 2.0
+}));
+
+function drawStars() {
+  ctx.fillStyle = "white";
+  for (let star of stars) {
+    ctx.beginPath();
+    ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+
 let player = {
   blocks: [{
     x: Math.floor(canvas.width / 2 / TILE_SIZE) * TILE_SIZE,
@@ -280,6 +296,8 @@ function drawProjectiles() {
 function draw() {
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawStars();
 
   const pivot = player.blocks[0];
   ctx.save();
