@@ -93,6 +93,38 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+window.addEventListener("resize", () => {
+  resizeCanvas();
+  centerPlayer(); // Recenter player on resize
+});
+
+// Call it once to set the initial size
+resizeCanvas();
+
+function centerPlayer() {
+  const centerX = Math.floor(canvas.width / 2 / TILE_SIZE) * TILE_SIZE;
+  const centerY = Math.floor(canvas.height / 2 / TILE_SIZE) * TILE_SIZE;
+
+  const offsetX = centerX - player.blocks[0].x;
+  const offsetY = centerY - player.blocks[0].y;
+
+  player.blocks.forEach(block => {
+    block.x += offsetX;
+    block.y += offsetY;
+  });
+}
+
+function init() {
+  resizeCanvas(); // set size first
+  centerPlayer(); // then center the player
+  update();
+}
+
 function movePlayer() {
   let dx = 0, dy = 0;
   if (keys["w"]) dy = -player.speed;
