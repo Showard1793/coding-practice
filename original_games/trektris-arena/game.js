@@ -14,9 +14,9 @@ const ROTATION_DURATION = 150;
 
 let isDashing = false;
 let dashCooldown = false;
-let dashDuration = 300;
+let dashDuration = 150;
 let dashCooldownDuration = 500;
-let dashSpeed = 8.5;
+let dashSpeed = 12;
 let normalSpeed = 3;
 let dashStartTime = 0;
 let playerInvincible = false;
