@@ -238,7 +238,7 @@ canvas.addEventListener("click", (e) => {
     y: playerCenterY,
     vx,
     vy,
-    radius: 5
+    length: 10 // length of the short red line
   });
 });
 
@@ -251,12 +251,21 @@ function updateProjectiles() {
 
 function drawProjectiles() {
   for (let p of projectiles) {
+    const angle = Math.atan2(p.vy, p.vx);
+    const x1 = p.x - Math.cos(angle) * p.length / 2;
+    const y1 = p.y - Math.sin(angle) * p.length / 2;
+    const x2 = p.x + Math.cos(angle) * p.length / 2;
+    const y2 = p.y + Math.sin(angle) * p.length / 2;
+
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-    ctx.fillStyle = "red";
-    ctx.fill();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
   }
 }
+
 // === End projectile logic ===
 
 function draw() {
