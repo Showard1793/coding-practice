@@ -412,7 +412,8 @@ function drawProjectiles() {
   }
 }
 
-function drawLineProjectile(x, y, vx, vy, length, color) {
+// Fix 1: Remove the duplicate drawing call from drawLineProjectile()
+function drawLineProjectile(x, y, vx, vy, length, color, width = 5) {
   const angle = Math.atan2(vy, vx);
   const x1 = x - Math.cos(angle) * length/2;
   const y1 = y - Math.sin(angle) * length/2;
@@ -420,12 +421,27 @@ function drawLineProjectile(x, y, vx, vy, length, color) {
   const y2 = y + Math.sin(angle) * length/2;
 
   ctx.strokeStyle = color;
-  ctx.lineWidth = 3;
+  ctx.lineWidth = width;
   ctx.beginPath();
   ctx.moveTo(x1, y1);
   ctx.lineTo(x2, y2);
   ctx.stroke();
 }
+
+// Fix 2: Update drawProjectiles() to properly handle both projectile types
+function drawProjectiles() {
+  // Player projectiles (red)
+  for (let p of projectiles) {
+    drawLineProjectile(p.x, p.y, p.vx, p.vy, p.length, "red", 3);
+  }
+  
+  // Enemy projectiles (green)
+  for (let p of enemyProjectiles) {
+    drawLineProjectile(p.x, p.y, p.vx, p.vy, p.length, "lime", 5);
+  }
+}
+
+
 
 //-------------------------------------------------------------------------------------
 // Enemy Projectile Collisions
@@ -549,7 +565,8 @@ function spawnEnemyProjectile() {
     vx: Math.cos(angle) * speed,
     vy: Math.sin(angle) * speed,
     length: 12,
-    color: "green"
+    color: "lime",
+    width: 5 // Add this line - adjust number for thickness (original was 3)
   });
 }
 
