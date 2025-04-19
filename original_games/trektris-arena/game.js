@@ -1,3 +1,4 @@
+let animationFrameId;
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -376,6 +377,134 @@ function updateEnemies() {
 }
 
 //-------------------------------------------------------------------------------------
+// Projectile Updates
+//-------------------------------------------------------------------------------------
+function updateProjectiles() {
+  // Player projectiles
+  for (let p of projectiles) {
+    p.x += p.vx;
+    p.y += p.vy;
+  }
+  
+  // Enemy projectiles
+  for (let i = enemyProjectiles.length-1; i >= 0; i--) {
+    const p = enemyProjectiles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    
+    // Remove if off-screen
+    if (p.x < 0 || p.x > canvas.width || p.y < 0 || p.y > canvas.height) {
+      enemyProjectiles.splice(i, 1);
+    }
+  }
+}
+
+function drawProjectiles() {
+  // Player projectiles
+  for (let p of projectiles) {
+    drawLineProjectile(p.x, p.y, p.vx, p.vy, p.length, "red");
+  }
+  
+  // Enemy projectiles
+  for (let p of enemyProjectiles) {
+    drawLineProjectile(p.x, p.y, p.vx, p.vy, p.length, "green");
+  }
+}
+
+function drawLineProjectile(x, y, vx, vy, length, color) {
+  const angle = Math.atan2(vy, vx);
+  const x1 = x - Math.cos(angle) * length/2;
+  const y1 = y - Math.sin(angle) * length/2;
+  const x2 = x + Math.cos(angle) * length/2;
+  const y2 = y + Math.sin(angle) * length/2;
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+//-------------------------------------------------------------------------------------
+// Enemy Projectile Collisions
+//-------------------------------------------------------------------------------------
+function checkEnemyProjectileCollisions() {
+  for (let i = enemyProjectiles.length-1; i >= 0; i--) {
+    const proj = enemyProjectiles[i];
+    
+    // Check collision with player blocks
+    for (let j = player.blocks.length-1; j >= 0; j--) {
+      const block = player.blocks[j];
+      
+      if (isProjectileHittingBlock(proj, block)) {
+        if (j === 0) { // Main player block (with black circle)
+          gameOver();
+          return;
+        } else { // Connected block
+          player.blocks.splice(j, 1);
+        }
+        enemyProjectiles.splice(i, 1);
+        break;
+      }
+    }
+  }
+}
+
+function isProjectileHittingBlock(proj, block) {
+  return proj.x > block.x && proj.x < block.x + TILE_SIZE &&
+         proj.y > block.y && proj.y < block.y + TILE_SIZE;
+}
+
+function gameOver() {
+  alert("Game Over! Refresh to play again.");
+  // Stop the game loop
+  cancelAnimationFrame(animationFrameId);
+}
+
+//-------------------------------------------------------------------------------------
+// Enemy Projectile Configuration
+//-------------------------------------------------------------------------------------
+const enemyProjectiles = [];
+const ENEMY_FIRE_RATE = 2000; // ms between shots
+let lastEnemyFireTime = 0;
+
+function spawnEnemyProjectile() {
+  const now = performance.now();
+  if (now - lastEnemyFireTime < ENEMY_FIRE_RATE) return;
+  lastEnemyFireTime = now;
+
+  // Find a random enemy to shoot from
+  if (enemyPieces.length === 0) return;
+  const shooter = enemyPieces[Math.floor(Math.random() * enemyPieces.length)];
+  
+  // Calculate center of shooter
+  const shooterCenterX = shooter.blocks[0].x + TILE_SIZE/2;
+  const shooterCenterY = shooter.blocks[0].y + TILE_SIZE/2;
+  
+  // Calculate direction to player
+  const playerCenterX = player.blocks[0].x + TILE_SIZE/2;
+  const playerCenterY = player.blocks[0].y + TILE_SIZE/2;
+  const dx = playerCenterX - shooterCenterX;
+  const dy = playerCenterY - shooterCenterY;
+  const distance = Math.sqrt(dx*dx + dy*dy);
+  
+  // Add some randomness to aim
+  const angleVariation = Math.PI/8; // 22.5 degrees variation
+  const angle = Math.atan2(dy, dx) + (Math.random() * angleVariation * 2 - angleVariation);
+  
+  const speed = 7;
+  enemyProjectiles.push({
+    x: shooterCenterX,
+    y: shooterCenterY,
+    vx: Math.cos(angle) * speed,
+    vy: Math.sin(angle) * speed,
+    length: 12,
+    color: "green"
+  });
+}
+
+//-------------------------------------------------------------------------------------
 // Projectile Collision with Enemies
 //-------------------------------------------------------------------------------------
 
@@ -550,20 +679,22 @@ function draw() {
 
 function gameLoop() {
   spawnEnemy();
+  spawnEnemyProjectile(); // Add this
   updateEnemies();
+  updateProjectiles();
   checkProjectileCollisions();
+  checkEnemyProjectileCollisions(); // Add this
   movePlayer();
   updateRotation();
-  updateProjectiles();
   checkCollisions();
   draw();
-  requestAnimationFrame(gameLoop);
+  animationFrameId = requestAnimationFrame(gameLoop);
 }
 
 function init() {
   resizeCanvas(); // set size first
   centerPlayer(); // then center the player
-  gameLoop();
+  animationFrameId = requestAnimationFrame(gameLoop); // Changed this line
 }
 
 init();
