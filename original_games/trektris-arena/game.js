@@ -314,7 +314,7 @@ let tetrisPieces = [
 //-------------------------------------------------------------------------------------
 
 const enemyPieces = [];
-const ENEMY_SPAWN_RATE = 2000; // ms between spawns
+const ENEMY_SPAWN_RATE = 1000; // ms between spawns
 let lastSpawnTime = 0;
 
 // Enemy piece templates (same shapes as tetrisPieces)
