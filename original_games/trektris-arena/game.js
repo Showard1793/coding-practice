@@ -310,6 +310,157 @@ let tetrisPieces = [
 ];
 
 //-------------------------------------------------------------------------------------
+// Enemy Pieces Configuration
+//-------------------------------------------------------------------------------------
+
+const enemyPieces = [];
+const ENEMY_SPAWN_RATE = 2000; // ms between spawns
+let lastSpawnTime = 0;
+
+// Enemy piece templates (same shapes as tetrisPieces)
+const enemyTemplates = [
+  {
+    blocks: [
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 40, y: 0 },
+      { x: 60, y: 0 }
+    ],
+    color: "red"
+  },
+  {
+    blocks: [
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 40, y: 0 },
+      { x: 20, y: 20 }
+    ],
+    color: "blue"
+  },
+  {
+    blocks: [
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 40, y: 0 },
+      { x: 40, y: 20 }
+    ],
+    color: "green"
+  },
+  {
+    blocks: [
+      { x: 0, y: 0 },
+      { x: 20, y: 0 },
+      { x: 0, y: 20 },
+      { x: 20, y: 20 }
+    ],
+    color: "yellow"
+  }
+];
+
+//-------------------------------------------------------------------------------------
+// Enemy Spawning and Movement
+//-------------------------------------------------------------------------------------
+
+function spawnEnemy() {
+  const now = performance.now();
+  if (now - lastSpawnTime < ENEMY_SPAWN_RATE) return;
+  lastSpawnTime = now;
+
+  const template = enemyTemplates[Math.floor(Math.random() * enemyTemplates.length)];
+  const angle = Math.random() * Math.PI * 2;
+  const speed = Math.random() * 3 + 1; // Speed between 1 and 4
+
+  // Spawn from edges
+  let x, y;
+  if (Math.random() < 0.5) {
+    x = Math.random() < 0.5 ? -100 : canvas.width + 100;
+    y = Math.random() * canvas.height;
+  } else {
+    x = Math.random() * canvas.width;
+    y = Math.random() < 0.5 ? -100 : canvas.height + 100;
+  }
+
+  const enemy = {
+    blocks: JSON.parse(JSON.stringify(template.blocks)), // Deep copy
+    color: template.color,
+    speed: speed,
+    angle: angle,
+    centerX: x,
+    centerY: y
+  };
+
+  // Position blocks relative to center
+  enemy.blocks.forEach(block => {
+    block.x += x;
+    block.y += y;
+  });
+
+  enemyPieces.push(enemy);
+}
+
+function updateEnemies() {
+  for (let i = 0; i < enemyPieces.length; i++) {
+    const enemy = enemyPieces[i];
+    const dx = Math.cos(enemy.angle) * enemy.speed;
+    const dy = Math.sin(enemy.angle) * enemy.speed;
+
+    enemy.centerX += dx;
+    enemy.centerY += dy;
+
+    for (let block of enemy.blocks) {
+      block.x += dx;
+      block.y += dy;
+    }
+
+    // Remove if off-screen
+    if (enemy.centerX < -200 || enemy.centerX > canvas.width + 200 ||
+        enemy.centerY < -200 || enemy.centerY > canvas.height + 200) {
+      enemyPieces.splice(i, 1);
+      i--;
+    }
+  }
+}
+
+//-------------------------------------------------------------------------------------
+// Projectile Collision with Enemies
+//-------------------------------------------------------------------------------------
+
+function checkProjectileCollisions() {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const proj = projectiles[i];
+    for (let j = enemyPieces.length - 1; j >= 0; j--) {
+      const enemy = enemyPieces[j];
+      let hit = false;
+
+      for (let block of enemy.blocks) {
+        if (Math.abs(proj.x - (block.x + TILE_SIZE/2)) < TILE_SIZE/2 &&
+            Math.abs(proj.y - (block.y + TILE_SIZE/2)) < TILE_SIZE/2) {
+          hit = true;
+          break;
+        }
+      }
+
+      if (hit) {
+        // Convert enemy to static piece
+        const staticPiece = {
+          blocks: enemy.blocks.map(block => ({
+            x: Math.round(block.x / TILE_SIZE) * TILE_SIZE,
+            y: Math.round(block.y / TILE_SIZE) * TILE_SIZE
+          })),
+          color: "white"
+        };
+        tetrisPieces.push(staticPiece);
+
+        enemyPieces.splice(j, 1);
+        projectiles.splice(i, 1);
+        break;
+      }
+    }
+  }
+}
+
+
+//-------------------------------------------------------------------------------------
 // Collision Detection
 //-------------------------------------------------------------------------------------
 
@@ -323,6 +474,18 @@ function isColliding(block) {
   ) {
     return true;
   }
+
+    // Add this new check for enemy pieces
+    if (enemyPieces.some(enemy =>
+      enemy.blocks.some(eBlock =>
+        block.x < eBlock.x + TILE_SIZE &&
+        block.x + TILE_SIZE > eBlock.x &&
+        block.y < eBlock.y + TILE_SIZE &&
+        block.y + TILE_SIZE > eBlock.y
+      )
+    )) {
+      return true;
+    }
 
   // Collision with tetris pieces
   return tetrisPieces.some(piece =>
@@ -415,6 +578,13 @@ function draw() {
     for (let block of piece.blocks) {
       drawBlock(block.x, block.y, piece.color);
     }
+
+     // Draw enemy pieces
+  for (let enemy of enemyPieces) {
+    for (let block of enemy.blocks) {
+      drawBlock(block.x, block.y, enemy.color);
+    }
+  }
   }
 
   drawProjectiles();
@@ -425,6 +595,9 @@ function draw() {
 //-------------------------------------------------------------------------------------
 
 function gameLoop() {
+  spawnEnemy();
+  updateEnemies();
+  checkProjectileCollisions();
   movePlayer();
   updateRotation();
   updateProjectiles();
