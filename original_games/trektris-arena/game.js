@@ -261,60 +261,14 @@ function drawProjectiles() {
 // Game Objects (Tetris Pieces)
 //-------------------------------------------------------------------------------------
 
-let tetrisPieces = [
-  {
-    blocks: [
-      { x: 100, y: 200 },
-      { x: 120, y: 200 },
-      { x: 140, y: 200 },
-      { x: 160, y: 200 }
-    ],
-    color: "white"
-  },
-  {
-    blocks: [
-      { x: 300, y: 300 },
-      { x: 320, y: 300 },
-      { x: 340, y: 300 },
-      { x: 360, y: 300 }
-    ],
-    color: "white"
-  },
-  {
-    blocks: [
-      { x: 200, y: 100 },
-      { x: 220, y: 100 },
-      { x: 240, y: 100 },
-      { x: 240, y: 120 }
-    ],
-    color: "white"
-  },
-  {
-    blocks: [
-      { x: 400, y: 100 },
-      { x: 420, y: 100 },
-      { x: 400, y: 120 },
-      { x: 420, y: 120 }
-    ],
-    color: "white"
-  },
-  {
-    blocks: [
-      { x: 500, y: 200 },
-      { x: 520, y: 200 },
-      { x: 540, y: 200 },
-      { x: 520, y: 220 }
-    ],
-    color: "white"
-  }
-];
+let tetrisPieces = [];
 
 //-------------------------------------------------------------------------------------
 // Enemy Pieces Configuration
 //-------------------------------------------------------------------------------------
 
 const enemyPieces = [];
-const ENEMY_SPAWN_RATE = 1000; // ms between spawns
+const ENEMY_SPAWN_RATE = 500; // ms between spawns
 let lastSpawnTime = 0;
 
 // Enemy piece templates (same shapes as tetrisPieces)
@@ -441,16 +395,15 @@ function checkProjectileCollisions() {
       }
 
       if (hit) {
-        // Convert enemy to static piece
-        const staticPiece = {
+        // This will work even with empty tetrisPieces array
+        tetrisPieces.push({
           blocks: enemy.blocks.map(block => ({
             x: Math.round(block.x / TILE_SIZE) * TILE_SIZE,
             y: Math.round(block.y / TILE_SIZE) * TILE_SIZE
           })),
           color: "white"
-        };
-        tetrisPieces.push(staticPiece);
-
+        });
+        
         enemyPieces.splice(j, 1);
         projectiles.splice(i, 1);
         break;
@@ -574,17 +527,18 @@ function draw() {
   }
   ctx.restore();
 
+  // Draw tetris pieces (static white pieces)
   for (let piece of tetrisPieces) {
     for (let block of piece.blocks) {
       drawBlock(block.x, block.y, piece.color);
     }
+  }
 
-     // Draw enemy pieces
+  // Draw enemy pieces (moving colored pieces) - MOVED OUTSIDE THE TETRIS PIECES LOOP
   for (let enemy of enemyPieces) {
     for (let block of enemy.blocks) {
       drawBlock(block.x, block.y, enemy.color);
     }
-  }
   }
 
   drawProjectiles();
