@@ -1,6 +1,10 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
+//-------------------------------------------------------------------------------------
+// Canvas Setup and Initialization
+//-------------------------------------------------------------------------------------
+
 // Fullscreen setup
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
@@ -8,25 +12,32 @@ document.body.style.margin = "0";
 document.body.style.overflow = "hidden";
 document.body.style.backgroundColor = "black";
 
-const TILE_SIZE = 20;
-const keys = {};
-const PRIMARY_COLORS = ["white"];
-const speed = 2;
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
 
-let playerRotation = 0;
-let targetRotation = 0;
-let rotating = false;
-let rotationStartTime = 0;
+window.addEventListener("resize", () => {
+  resizeCanvas();
+  centerPlayer(); // Recenter player on resize
+});
+
+// Call it once to set the initial size
+resizeCanvas();
+
+// Constants
+const TILE_SIZE = 20;
+const PRIMARY_COLORS = ["white"];
 const ROTATION_DURATION = 150;
 
-let isDashing = false;
-let dashCooldown = false;
-let dashDuration = 150;
-let dashCooldownDuration = 500;
-let dashSpeed = 12;
-let normalSpeed = 3;
-let dashStartTime = 0;
-let playerInvincible = false;
+// Input handling
+const keys = {};
+document.addEventListener("keydown", (e) => keys[e.key] = true);
+document.addEventListener("keyup", (e) => keys[e.key] = false);
+
+//-------------------------------------------------------------------------------------
+// Visual Effects (Stars Background)
+//-------------------------------------------------------------------------------------
 
 const stars = Array.from({ length: 150 }, () => ({
   x: Math.random() * canvas.width,
@@ -43,6 +54,9 @@ function drawStars() {
   }
 }
 
+//-------------------------------------------------------------------------------------
+// Player Configuration and Mechanics
+//-------------------------------------------------------------------------------------
 
 let player = {
   blocks: [{
@@ -50,77 +64,14 @@ let player = {
     y: Math.floor(canvas.height / 2 / TILE_SIZE) * TILE_SIZE
   }],
   color: "#666666",
-  speed: normalSpeed
+  speed: 3
 };
 
-let tetrisPieces = [
-  {
-    blocks: [
-      { x: 100, y: 200 },
-      { x: 120, y: 200 },
-      { x: 140, y: 200 },
-      { x: 160, y: 200 }
-    ],
-    color: "white"
-  },
-  {
-    blocks: [
-      { x: 300, y: 300 },
-      { x: 320, y: 300 },
-      { x: 340, y: 300 },
-      { x: 360, y: 300 }
-    ],
-    color: "white"
-  },
-  {
-    blocks: [
-      { x: 200, y: 100 },
-      { x: 220, y: 100 },
-      { x: 240, y: 100 },
-      { x: 240, y: 120 }
-    ],
-    color: "white"
-  },
-  {
-    blocks: [
-      { x: 400, y: 100 },
-      { x: 420, y: 100 },
-      { x: 400, y: 120 },
-      { x: 420, y: 120 }
-    ],
-    color: "white"
-  },
-  {
-    blocks: [
-      { x: 500, y: 200 },
-      { x: 520, y: 200 },
-      { x: 540, y: 200 },
-      { x: 520, y: 220 }
-    ],
-    color: "white"
-  }
-];
-
-document.addEventListener("keydown", (e) => keys[e.key] = true);
-document.addEventListener("keyup", (e) => keys[e.key] = false);
-document.addEventListener("keydown", (e) => {
-  if (e.code === "Space" && !isDashing && !dashCooldown) {
-    startDash();
-  }
-});
-
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-
-window.addEventListener("resize", () => {
-  resizeCanvas();
-  centerPlayer(); // Recenter player on resize
-});
-
-// Call it once to set the initial size
-resizeCanvas();
+const normalSpeed = 3;
+let playerRotation = 0;
+let targetRotation = 0;
+let rotating = false;
+let rotationStartTime = 0;
 
 function centerPlayer() {
   const centerX = Math.floor(canvas.width / 2 / TILE_SIZE) * TILE_SIZE;
@@ -133,12 +84,6 @@ function centerPlayer() {
     block.x += offsetX;
     block.y += offsetY;
   });
-}
-
-function init() {
-  resizeCanvas(); // set size first
-  centerPlayer(); // then center the player
-  update();
 }
 
 function movePlayer() {
@@ -173,27 +118,69 @@ function movePlayer() {
   }
 }
 
-function isColliding(block) {
-  // Boundary check
-  if (
-    block.x < 0 ||
-    block.y < 0 ||
-    block.x + TILE_SIZE > canvas.width ||
-    block.y + TILE_SIZE > canvas.height
-  ) {
-    return true;
-  }
+//-------------------------------------------------------------------------------------
+// Rotation Mechanics
+//-------------------------------------------------------------------------------------
 
-  // Collision with tetris pieces
-  return tetrisPieces.some(piece =>
-    piece.blocks.some(tBlock =>
-      block.x < tBlock.x + TILE_SIZE &&
-      block.x + TILE_SIZE > tBlock.x &&
-      block.y < tBlock.y + TILE_SIZE &&
-      block.y + TILE_SIZE > tBlock.y
-    )
-  );
+function rotatePlayer() {
+  if (rotating) return;
+  rotating = true;
+  rotationStartTime = performance.now();
+  targetRotation += Math.PI / 2;
 }
+
+function rotatePlayerCounterclockwise() {
+  if (rotating) return;
+  rotating = true;
+  rotationStartTime = performance.now();
+  targetRotation -= Math.PI / 2;
+}
+
+document.addEventListener("wheel", (e) => {
+  if (e.deltaY > 0) rotatePlayer();
+  else rotatePlayerCounterclockwise();
+});
+
+function updateRotation() {
+  if (!rotating) return;
+  const now = performance.now();
+  const elapsed = now - rotationStartTime;
+  const t = Math.min(elapsed / ROTATION_DURATION, 1);
+  playerRotation = targetRotation * t;
+
+  if (t >= 1) {
+    rotating = false;
+    const pivot = player.blocks[0];
+    for (let block of player.blocks) {
+      const dx = block.x - pivot.x;
+      const dy = block.y - pivot.y;
+      const newX = targetRotation > 0 ? pivot.x - dy : pivot.x + dy;
+      const newY = targetRotation > 0 ? pivot.y + dx : pivot.y - dx;
+      block.x = newX;
+      block.y = newY;
+    }
+    playerRotation = 0;
+    targetRotation = 0;
+  }
+}
+
+//-------------------------------------------------------------------------------------
+// Dash Mechanics
+//-------------------------------------------------------------------------------------
+
+let isDashing = false;
+let dashCooldown = false;
+let dashDuration = 150;
+let dashCooldownDuration = 500;
+let dashSpeed = 12;
+let dashStartTime = 0;
+let playerInvincible = false;
+
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space" && !isDashing && !dashCooldown) {
+    startDash();
+  }
+});
 
 function startDash() {
   isDashing = true;
@@ -216,32 +203,9 @@ function startDash() {
   }, dashCooldownDuration);
 }
 
-function rotatePlayer() {
-  if (rotating) return;
-  rotating = true;
-  rotationStartTime = performance.now();
-  targetRotation += Math.PI / 2;
-}
-
-function rotatePlayerCounterclockwise() {
-  if (rotating) return;
-  rotating = true;
-  rotationStartTime = performance.now();
-  targetRotation -= Math.PI / 2;
-}
-
-document.addEventListener("wheel", (e) => {
-  if (e.deltaY > 0) rotatePlayer();
-  else rotatePlayerCounterclockwise();
-});
-
-function drawBlock(x, y, color = "black") {
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
-  ctx.strokeStyle = "black";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
-}
+//-------------------------------------------------------------------------------------
+// Projectile Mechanics
+//-------------------------------------------------------------------------------------
 
 const projectiles = [];
 canvas.addEventListener("click", (e) => {
@@ -293,61 +257,82 @@ function drawProjectiles() {
   }
 }
 
-function draw() {
-  ctx.fillStyle = "black";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+//-------------------------------------------------------------------------------------
+// Game Objects (Tetris Pieces)
+//-------------------------------------------------------------------------------------
 
-  drawStars();
-
-  const pivot = player.blocks[0];
-  ctx.save();
-  ctx.translate(pivot.x + TILE_SIZE / 2, pivot.y + TILE_SIZE / 2);
-  ctx.rotate(playerRotation);
-  for (let i = 0; i < player.blocks.length; i++) {
-    const block = player.blocks[i];
-    const dx = block.x - pivot.x;
-    const dy = block.y - pivot.y;
-    drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, player.color);
-
-    if (i === 0) {
-      ctx.beginPath();
-      ctx.arc(dx, dy, 4, 0, Math.PI * 2);
-      ctx.fillStyle = "black";
-      ctx.fill();
-    }
+let tetrisPieces = [
+  {
+    blocks: [
+      { x: 100, y: 200 },
+      { x: 120, y: 200 },
+      { x: 140, y: 200 },
+      { x: 160, y: 200 }
+    ],
+    color: "white"
+  },
+  {
+    blocks: [
+      { x: 300, y: 300 },
+      { x: 320, y: 300 },
+      { x: 340, y: 300 },
+      { x: 360, y: 300 }
+    ],
+    color: "white"
+  },
+  {
+    blocks: [
+      { x: 200, y: 100 },
+      { x: 220, y: 100 },
+      { x: 240, y: 100 },
+      { x: 240, y: 120 }
+    ],
+    color: "white"
+  },
+  {
+    blocks: [
+      { x: 400, y: 100 },
+      { x: 420, y: 100 },
+      { x: 400, y: 120 },
+      { x: 420, y: 120 }
+    ],
+    color: "white"
+  },
+  {
+    blocks: [
+      { x: 500, y: 200 },
+      { x: 520, y: 200 },
+      { x: 540, y: 200 },
+      { x: 520, y: 220 }
+    ],
+    color: "white"
   }
-  ctx.restore();
+];
 
-  for (let piece of tetrisPieces) {
-    for (let block of piece.blocks) {
-      drawBlock(block.x, block.y, piece.color);
-    }
+//-------------------------------------------------------------------------------------
+// Collision Detection
+//-------------------------------------------------------------------------------------
+
+function isColliding(block) {
+  // Boundary check
+  if (
+    block.x < 0 ||
+    block.y < 0 ||
+    block.x + TILE_SIZE > canvas.width ||
+    block.y + TILE_SIZE > canvas.height
+  ) {
+    return true;
   }
 
-  drawProjectiles();
-}
-
-function updateRotation() {
-  if (!rotating) return;
-  const now = performance.now();
-  const elapsed = now - rotationStartTime;
-  const t = Math.min(elapsed / ROTATION_DURATION, 1);
-  playerRotation = targetRotation * t;
-
-  if (t >= 1) {
-    rotating = false;
-    const pivot = player.blocks[0];
-    for (let block of player.blocks) {
-      const dx = block.x - pivot.x;
-      const dy = block.y - pivot.y;
-      const newX = targetRotation > 0 ? pivot.x - dy : pivot.x + dy;
-      const newY = targetRotation > 0 ? pivot.y + dx : pivot.y - dx;
-      block.x = newX;
-      block.y = newY;
-    }
-    playerRotation = 0;
-    targetRotation = 0;
-  }
+  // Collision with tetris pieces
+  return tetrisPieces.some(piece =>
+    piece.blocks.some(tBlock =>
+      block.x < tBlock.x + TILE_SIZE &&
+      block.x + TILE_SIZE > tBlock.x &&
+      block.y < tBlock.y + TILE_SIZE &&
+      block.y + TILE_SIZE > tBlock.y
+    )
+  );
 }
 
 function checkCollisions() {
@@ -388,6 +373,57 @@ function adjustPlayerShape() {
   }));
 }
 
+
+//-------------------------------------------------------------------------------------
+// Rendering Functions
+//-------------------------------------------------------------------------------------
+
+function drawBlock(x, y, color = "black") {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, TILE_SIZE, TILE_SIZE);
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
+}
+
+function draw() {
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawStars();
+
+  const pivot = player.blocks[0];
+  ctx.save();
+  ctx.translate(pivot.x + TILE_SIZE / 2, pivot.y + TILE_SIZE / 2);
+  ctx.rotate(playerRotation);
+  for (let i = 0; i < player.blocks.length; i++) {
+    const block = player.blocks[i];
+    const dx = block.x - pivot.x;
+    const dy = block.y - pivot.y;
+    drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, player.color);
+
+    if (i === 0) {
+      ctx.beginPath();
+      ctx.arc(dx, dy, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "black";
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  for (let piece of tetrisPieces) {
+    for (let block of piece.blocks) {
+      drawBlock(block.x, block.y, piece.color);
+    }
+  }
+
+  drawProjectiles();
+}
+
+//-------------------------------------------------------------------------------------
+// Game Loop and Initialization
+//-------------------------------------------------------------------------------------
+
 function gameLoop() {
   movePlayer();
   updateRotation();
@@ -397,4 +433,10 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-gameLoop();
+function init() {
+  resizeCanvas(); // set size first
+  centerPlayer(); // then center the player
+  gameLoop();
+}
+
+init();
