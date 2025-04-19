@@ -456,11 +456,15 @@ function checkEnemyProjectileCollisions() {
       
       if (isProjectileHittingBlock(proj, block)) {
         if (j === 0) { // Main player block
-          gameOver();
-          return;
+          if (!playerInvincible) { // Only game over if not invincible
+            gameOver();
+            return;
+          }
         } else { // Connected block
-          player.blocks.splice(j, 1);
-          removeDisconnectedBlocks(); // Add this line
+          if (!playerInvincible) { // Only remove block if not invincible
+            player.blocks.splice(j, 1);
+            removeDisconnectedBlocks();
+          }
         }
         enemyProjectiles.splice(i, 1);
         break;
@@ -700,21 +704,29 @@ function drawBlock(x, y, color = "black") {
 }
 
 function draw() {
+  // Clear canvas
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  // Draw background stars
   drawStars();
 
+  // Draw player with rotation
   const pivot = player.blocks[0];
   ctx.save();
   ctx.translate(pivot.x + TILE_SIZE / 2, pivot.y + TILE_SIZE / 2);
   ctx.rotate(playerRotation);
+  
+  // Draw player blocks
   for (let i = 0; i < player.blocks.length; i++) {
     const block = player.blocks[i];
     const dx = block.x - pivot.x;
     const dy = block.y - pivot.y;
+    
+    // Main block drawing
     drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, player.color);
 
+    // Draw center indicator on core block
     if (i === 0) {
       ctx.beginPath();
       ctx.arc(dx, dy, 4, 0, Math.PI * 2);
@@ -724,21 +736,31 @@ function draw() {
   }
   ctx.restore();
 
-  // Draw tetris pieces (static white pieces)
+  // Draw static tetris pieces (white)
   for (let piece of tetrisPieces) {
     for (let block of piece.blocks) {
       drawBlock(block.x, block.y, piece.color);
     }
   }
 
-  // Draw enemy pieces (moving colored pieces) - MOVED OUTSIDE THE TETRIS PIECES LOOP
+  // Draw enemy pieces (colored)
   for (let enemy of enemyPieces) {
     for (let block of enemy.blocks) {
       drawBlock(block.x, block.y, enemy.color);
+      
+      // Optional: Draw enemy center point
+      if (block === enemy.blocks[0]) {
+        ctx.beginPath();
+        ctx.arc(block.x + TILE_SIZE/2, block.y + TILE_SIZE/2, 4, 0, Math.PI * 2); // Changed radius from 3 to 6
+        ctx.fillStyle = "black";
+        ctx.fill();
+      }
     }
   }
 
+  // Draw all projectiles
   drawProjectiles();
+
 }
 
 //-------------------------------------------------------------------------------------
