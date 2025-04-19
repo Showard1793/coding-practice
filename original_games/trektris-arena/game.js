@@ -160,6 +160,7 @@ function updateRotation() {
       block.x = newX;
       block.y = newY;
     }
+    removeDisconnectedBlocks(); // Add this line
     playerRotation = 0;
     targetRotation = 0;
   }
@@ -438,11 +439,12 @@ function checkEnemyProjectileCollisions() {
       const block = player.blocks[j];
       
       if (isProjectileHittingBlock(proj, block)) {
-        if (j === 0) { // Main player block (with black circle)
+        if (j === 0) { // Main player block
           gameOver();
           return;
         } else { // Connected block
           player.blocks.splice(j, 1);
+          removeDisconnectedBlocks(); // Add this line
         }
         enemyProjectiles.splice(i, 1);
         break;
@@ -463,10 +465,57 @@ function gameOver() {
 }
 
 //-------------------------------------------------------------------------------------
+// Block Connection System
+//-------------------------------------------------------------------------------------
+
+function removeDisconnectedBlocks() {
+  if (player.blocks.length <= 1) return; // Only core block remains
+  
+  const connectedBlocks = new Set();
+  const queue = [player.blocks[0]]; // Start with core block
+  connectedBlocks.add(player.blocks[0]);
+  
+  // Breadth-first search to find all connected blocks
+  while (queue.length > 0) {
+    const current = queue.shift();
+    
+    // Check all 4 adjacent positions
+    const directions = [
+      {dx: TILE_SIZE, dy: 0},   // right
+      {dx: -TILE_SIZE, dy: 0},  // left
+      {dx: 0, dy: TILE_SIZE},    // down
+      {dx: 0, dy: -TILE_SIZE}    // up
+    ];
+    
+    for (const dir of directions) {
+      const neighborPos = {
+        x: current.x + dir.dx,
+        y: current.y + dir.dy
+      };
+      
+      // Find matching block
+      const neighbor = player.blocks.find(b => 
+        b.x === neighborPos.x && b.y === neighborPos.y
+      );
+      
+      if (neighbor && !connectedBlocks.has(neighbor)) {
+        connectedBlocks.add(neighbor);
+        queue.push(neighbor);
+      }
+    }
+  }
+  
+  // Remove any blocks not in connectedBlocks set
+  player.blocks = player.blocks.filter(block => 
+    connectedBlocks.has(block)
+  );
+}
+
+//-------------------------------------------------------------------------------------
 // Enemy Projectile Configuration
 //-------------------------------------------------------------------------------------
 const enemyProjectiles = [];
-const ENEMY_FIRE_RATE = 2000; // ms between shots
+const ENEMY_FIRE_RATE = 300; // ms between shots
 let lastEnemyFireTime = 0;
 
 function spawnEnemyProjectile() {
@@ -606,6 +655,7 @@ function checkCollisions() {
       player.blocks.push(...piece.blocks);
       tetrisPieces.splice(i, 1);
       adjustPlayerShape();
+      removeDisconnectedBlocks();
       return;
     }
   }
@@ -616,6 +666,7 @@ function adjustPlayerShape() {
     x: Math.round(block.x / TILE_SIZE) * TILE_SIZE,
     y: Math.round(block.y / TILE_SIZE) * TILE_SIZE
   }));
+  removeDisconnectedBlocks(); // Add this line
 }
 
 
