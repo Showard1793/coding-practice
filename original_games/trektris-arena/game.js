@@ -1,4 +1,6 @@
 let animationFrameId;
+let rotationCollisionChecked = false;
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -28,7 +30,6 @@ resizeCanvas();
 
 // Constants
 const TILE_SIZE = 20;
-const PRIMARY_COLORS = ["white"];
 const ROTATION_DURATION = 150;
 
 // Input handling
@@ -149,6 +150,9 @@ function updateRotation() {
   const t = Math.min(elapsed / ROTATION_DURATION, 1);
   playerRotation = targetRotation * t;
 
+  // Check collisions continuously during rotation
+  checkRotationCollisions();
+
   if (t >= 1) {
     rotating = false;
     const pivot = player.blocks[0];
@@ -160,7 +164,7 @@ function updateRotation() {
       block.x = newX;
       block.y = newY;
     }
-    removeDisconnectedBlocks(); // Add this line
+    removeDisconnectedBlocks();
     playerRotation = 0;
     targetRotation = 0;
   }
@@ -275,42 +279,46 @@ let lastSpawnTime = 0;
 
 // Enemy piece templates (same shapes as tetrisPieces)
 const enemyTemplates = [
-  {
-    blocks: [
-      { x: 0, y: 0 },
-      { x: 20, y: 0 },
-      { x: 40, y: 0 },
-      { x: 60, y: 0 }
-    ],
-    color: "red"
-  },
-  {
-    blocks: [
-      { x: 0, y: 0 },
-      { x: 20, y: 0 },
-      { x: 40, y: 0 },
-      { x: 20, y: 20 }
-    ],
-    color: "blue"
-  },
-  {
-    blocks: [
-      { x: 0, y: 0 },
-      { x: 20, y: 0 },
-      { x: 40, y: 0 },
-      { x: 40, y: 20 }
-    ],
-    color: "green"
-  },
-  {
-    blocks: [
-      { x: 0, y: 0 },
-      { x: 20, y: 0 },
-      { x: 0, y: 20 },
-      { x: 20, y: 20 }
-    ],
-    color: "yellow"
-  }
+  // I-shape (3-5 variations)
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:40,y:0}], name: "I3" },
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:40,y:0}, {x:60,y:0}], name: "I4" },
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:40,y:0}, {x:60,y:0}, {x:80,y:0}], name: "I5" },
+  
+  // L-shape variations
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:40,y:0}, {x:0,y:20}], name: "L4a" },
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:40,y:0}, {x:40,y:20}], name: "L4b" },
+  { blocks: [{x:0,y:0}, {x:0,y:20}, {x:0,y:40}, {x:20,y:40}], name: "L4c" },
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:0,y:20}, {x:0,y:40}], name: "L4d" },
+  
+  // T-shape variations
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:40,y:0}, {x:20,y:20}], name: "T4" },
+  { blocks: [{x:20,y:0}, {x:0,y:20}, {x:20,y:20}, {x:40,y:20}], name: "T4v" },
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:40,y:0}, {x:20,y:20}, {x:20,y:40}], name: "T5" },
+  
+  // Z/S-shape variations
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:20,y:20}, {x:40,y:20}], name: "Z4" },
+  { blocks: [{x:20,y:0}, {x:0,y:20}, {x:20,y:20}, {x:0,y:40}], name: "S4" },
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:20,y:20}, {x:40,y:20}, {x:40,y:40}], name: "Z5" },
+  
+  // Square variations
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:0,y:20}, {x:20,y:20}], name: "O4" },
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:40,y:0}, {x:0,y:20}, {x:20,y:20}, {x:40,y:20}], name: "O6" },
+  
+  // Miscellaneous shapes
+  { blocks: [{x:0,y:0}, {x:20,y:0}, {x:0,y:20}], name: "tri3" },
+  { blocks: [{x:20,y:0}, {x:0,y:20}, {x:20,y:20}, {x:40,y:20}, {x:20,y:40}], name: "plus5" }
+];
+
+// Primary colors for enemies
+const PRIMARY_COLORS = [
+  "#FF0000", // red
+  "#00FF00", // green
+  "#0000FF", // blue
+  "#FFFF00", // yellow
+  "#FF00FF", // magenta
+  "#00FFFF", // cyan
+  "#FF8800", // orange
+  "#8800FF"  // purple
 ];
 
 //-------------------------------------------------------------------------------------
@@ -322,7 +330,9 @@ function spawnEnemy() {
   if (now - lastSpawnTime < ENEMY_SPAWN_RATE) return;
   lastSpawnTime = now;
 
+  // Select random template and color
   const template = enemyTemplates[Math.floor(Math.random() * enemyTemplates.length)];
+  const color = PRIMARY_COLORS[Math.floor(Math.random() * PRIMARY_COLORS.length)];
   const angle = Math.random() * Math.PI * 2;
   const speed = Math.random() * 3 + 1; // Speed between 1 and 4
 
@@ -338,7 +348,7 @@ function spawnEnemy() {
 
   const enemy = {
     blocks: JSON.parse(JSON.stringify(template.blocks)), // Deep copy
-    color: template.color,
+    color: color,
     speed: speed,
     angle: angle,
     centerX: x,
@@ -690,6 +700,93 @@ function adjustPlayerShape() {
   removeDisconnectedBlocks(); // Add this line
 }
 
+function checkRotationCollisions() {
+  if (!rotating) return;
+
+  const pivot = player.blocks[0];
+  const rotationDirection = targetRotation > 0 ? 1 : -1;
+  const rotationAngle = (Math.PI/2) * rotationDirection;
+  
+  // Check all player blocks against all enemy blocks
+  for (let i = enemyPieces.length - 1; i >= 0; i--) {
+    const enemy = enemyPieces[i];
+    let enemyHit = false;
+    
+    for (let enemyBlock of enemy.blocks) {
+      for (let playerBlock of player.blocks) {
+        // Calculate positions relative to pivot
+        const playerDx = playerBlock.x - pivot.x;
+        const playerDy = playerBlock.y - pivot.y;
+        const enemyDx = enemyBlock.x - pivot.x;
+        const enemyDy = enemyBlock.y - pivot.y;
+        
+        // Calculate current and next positions
+        const currentPlayerAngle = Math.atan2(playerDy, playerDx);
+        const nextPlayerAngle = currentPlayerAngle + rotationAngle;
+        
+        const playerDist = Math.sqrt(playerDx*playerDx + playerDy*playerDy);
+        const enemyDist = Math.sqrt(enemyDx*enemyDx + enemyDy*enemyDy);
+        
+        // Check if enemy block is within the rotation path
+        const angleDiff = Math.abs(Math.atan2(enemyDy, enemyDx) - currentPlayerAngle);
+        const minDist = Math.min(playerDist, enemyDist);
+        const maxDist = Math.max(playerDist, enemyDist);
+        
+        if (angleDiff < Math.PI/4 && // Within 45 degree cone
+            Math.abs(enemyDist - playerDist) < TILE_SIZE * 1.5 && // Within distance threshold
+            maxDist < TILE_SIZE * 4) { // Not too far away
+            
+          enemyHit = true;
+          break;
+        }
+      }
+      if (enemyHit) break;
+    }
+    
+    if (enemyHit) {
+      // Convert enemy to white piece (like being shot)
+      tetrisPieces.push({
+        blocks: enemy.blocks.map(b => ({
+          x: Math.round(b.x / TILE_SIZE) * TILE_SIZE,
+          y: Math.round(b.y / TILE_SIZE) * TILE_SIZE
+        })),
+        color: "white"
+      });
+      enemyPieces.splice(i, 1);
+    }
+  }
+
+  // Check white pieces (same as before but more reliable)
+  for (let i = tetrisPieces.length - 1; i >= 0; i--) {
+    const piece = tetrisPieces[i];
+    if (piece.color !== "white") continue;
+    
+    let pieceHit = false;
+    for (let block of piece.blocks) {
+      for (let playerBlock of player.blocks) {
+        const playerDx = playerBlock.x - pivot.x;
+        const playerDy = playerBlock.y - pivot.y;
+        const blockDx = block.x - pivot.x;
+        const blockDy = block.y - pivot.y;
+        
+        const angleDiff = Math.abs(Math.atan2(blockDy, blockDx) - Math.atan2(playerDy, playerDx));
+        const distDiff = Math.abs(Math.sqrt(blockDx*blockDx + blockDy*blockDy) - 
+                                 Math.sqrt(playerDx*playerDx + playerDy*playerDy));
+        
+        if (angleDiff < Math.PI/4 && distDiff < TILE_SIZE * 1.5) {
+          pieceHit = true;
+          break;
+        }
+      }
+      if (pieceHit) break;
+    }
+    
+    if (pieceHit) {
+      tetrisPieces.splice(i, 1);
+    }
+  }
+}
+
 
 //-------------------------------------------------------------------------------------
 // Rendering Functions
@@ -769,11 +866,11 @@ function draw() {
 
 function gameLoop() {
   spawnEnemy();
-  spawnEnemyProjectile(); // Add this
+  spawnEnemyProjectile();
   updateEnemies();
   updateProjectiles();
   checkProjectileCollisions();
-  checkEnemyProjectileCollisions(); // Add this
+  checkEnemyProjectileCollisions();
   movePlayer();
   updateRotation();
   checkCollisions();
