@@ -150,10 +150,8 @@ function updateRotation() {
   const t = Math.min(elapsed / ROTATION_DURATION, 1);
   playerRotation = targetRotation * t;
 
-  // Check for enemy collisions during rotation
-  if (t > 0.3 && t < 0.7) { // Only check during middle of rotation
-    checkRotationEnemyCollisions();
-  }
+  // Check for enemy collisions continuously during rotation
+  checkRotationEnemyCollisions();
 
   if (t >= 1) {
     rotating = false;
@@ -169,16 +167,16 @@ function updateRotation() {
       };
     });
     
-    // Check if new positions would collide
+    // Check if new positions would collide (ignore enemies)
     const wouldCollide = proposedBlocks.some(block => {
       // Temporarily store original position
       const originalX = block.x;
       const originalY = block.y;
       
-      // Test collision at new position
+      // Test collision at new position (ignore enemies during this check)
       block.x = proposedBlocks.find(b => b.x === originalX && b.y === originalY).x;
       block.y = proposedBlocks.find(b => b.x === originalX && b.y === originalY).y;
-      const collision = isColliding(block);
+      const collision = isCollidingWithNonEnemies(block);
       
       // Restore original position
       block.x = originalX;
@@ -187,7 +185,7 @@ function updateRotation() {
       return collision;
     });
     
-    // Only apply rotation if it wouldn't cause collision
+    // Only apply rotation if it wouldn't cause collision with non-enemies
     if (!wouldCollide) {
       for (let i = 0; i < player.blocks.length; i++) {
         player.blocks[i].x = proposedBlocks[i].x;
@@ -201,38 +199,61 @@ function updateRotation() {
   }
 }
 
+function isCollidingWithNonEnemies(block) {
+  // Boundary check
+  if (block.x < 0 || block.y < 0 || 
+      block.x + TILE_SIZE > canvas.width || 
+      block.y + TILE_SIZE > canvas.height) {
+    return true;
+  }
+
+  // Check against tetris pieces (white)
+  for (let piece of tetrisPieces) {
+    for (let tBlock of piece.blocks) {
+      const buffer = piece.color === "white" ? 6 : 0;
+      
+      if (block.x < tBlock.x + TILE_SIZE - buffer &&
+          block.x + TILE_SIZE > tBlock.x + buffer &&
+          block.y < tBlock.y + TILE_SIZE - buffer &&
+          block.y + TILE_SIZE > tBlock.y + buffer) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function checkRotationEnemyCollisions() {
   if (!rotating) return;
 
   const pivot = player.blocks[0];
-  const rotationDirection = targetRotation > 0 ? 1 : -1;
   
-  // Check all player blocks against all enemy blocks during rotation
+  // Check all player blocks against all enemy blocks
   for (let i = enemyPieces.length - 1; i >= 0; i--) {
     const enemy = enemyPieces[i];
     let enemyHit = false;
     
-    for (let enemyBlock of enemy.blocks) {
-      for (let playerBlock of player.blocks) {
-        // Calculate positions relative to pivot
-        const playerDx = playerBlock.x - pivot.x;
-        const playerDy = playerBlock.y - pivot.y;
-        const enemyDx = enemyBlock.x - pivot.x;
-        const enemyDy = enemyBlock.y - pivot.y;
-        
-        // Calculate angle differences
-        const playerAngle = Math.atan2(playerDy, playerDx);
-        const enemyAngle = Math.atan2(enemyDy, enemyDx);
-        const angleDiff = Math.abs(enemyAngle - playerAngle);
-        
-        // Check if enemy block is within the rotation path
-        const playerDist = Math.sqrt(playerDx*playerDx + playerDy*playerDy);
-        const enemyDist = Math.sqrt(enemyDx*enemyDx + enemyDy*enemyDy);
-        const distDiff = Math.abs(enemyDist - playerDist);
-        
-        if (angleDiff < Math.PI/4 &&      // Within 45 degree cone
-            distDiff < TILE_SIZE * 1.5 && // Within distance threshold
-            playerDist < TILE_SIZE * 4) { // Not too far away
+    // Calculate rotation path for each player block
+    for (let playerBlock of player.blocks) {
+      const dx = playerBlock.x - pivot.x;
+      const dy = playerBlock.y - pivot.y;
+      
+      // Calculate start and end angles
+      const startAngle = Math.atan2(dy, dx);
+      const endAngle = startAngle + (targetRotation > 0 ? Math.PI/2 : -Math.PI/2);
+      
+      // Calculate rotation path (simplified as a line segment)
+      const startX = pivot.x + Math.cos(startAngle) * Math.sqrt(dx*dx + dy*dy);
+      const startY = pivot.y + Math.sin(startAngle) * Math.sqrt(dx*dx + dy*dy);
+      const endX = pivot.x + Math.cos(endAngle) * Math.sqrt(dx*dx + dy*dy);
+      const endY = pivot.y + Math.sin(endAngle) * Math.sqrt(dx*dx + dy*dy);
+      
+      // Check against all enemy blocks
+      for (let enemyBlock of enemy.blocks) {
+        if (lineIntersectsRect(
+          startX, startY, endX, endY,
+          enemyBlock.x, enemyBlock.y, TILE_SIZE, TILE_SIZE
+        )) {
           enemyHit = true;
           break;
         }
@@ -252,6 +273,32 @@ function checkRotationEnemyCollisions() {
       enemyPieces.splice(i, 1);
     }
   }
+}
+
+// Helper function to detect line-rectangle intersection
+function lineIntersectsRect(x1, y1, x2, y2, rx, ry, rw, rh) {
+  // Check if either point is inside the rectangle
+  if ((x1 >= rx && x1 <= rx+rw && y1 >= ry && y1 <= ry+rh) ||
+      (x2 >= rx && x2 <= rx+rw && y2 >= ry && y2 <= ry+rh)) {
+    return true;
+  }
+  
+  // Check line segment against rectangle edges
+  return lineIntersectsLine(x1, y1, x2, y2, rx, ry, rx+rw, ry) || // top
+         lineIntersectsLine(x1, y1, x2, y2, rx+rw, ry, rx+rw, ry+rh) || // right
+         lineIntersectsLine(x1, y1, x2, y2, rx, ry+rh, rx+rw, ry+rh) || // bottom
+         lineIntersectsLine(x1, y1, x2, y2, rx, ry, rx, ry+rh); // left
+}
+
+// Helper function to detect line-line intersection
+function lineIntersectsLine(x1, y1, x2, y2, x3, y3, x4, y4) {
+  const denom = (y4-y3)*(x2-x1) - (x4-x3)*(y2-y1);
+  if (denom === 0) return false; // parallel
+  
+  const ua = ((x4-x3)*(y1-y3) - (y4-y3)*(x1-x3)) / denom;
+  const ub = ((x2-x1)*(y1-y3) - (y2-y1)*(x1-x3)) / denom;
+  
+  return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
 }
 
 //-------------------------------------------------------------------------------------
@@ -735,7 +782,7 @@ function isColliding(block) {
     }
   }
 
-  // Don't let enemies block rotation - they'll be converted instead
+  // Only check enemies when not rotating (they're handled separately during rotation)
   if (!rotating) {
     return enemyPieces.some(enemy =>
       enemy.blocks.some(eBlock =>
