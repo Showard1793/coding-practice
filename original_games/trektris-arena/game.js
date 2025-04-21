@@ -1,6 +1,10 @@
 let animationFrameId;
 let rotationCollisionChecked = false;
 
+// Add these constants with your other constants
+const HEAD_ON_COLLISION_BUFFER = 6; // Pixels of leeway for head-on collisions
+const SIDE_COLLISION_TOLERANCE = 2; // How close side collisions can be without merging
+
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
@@ -95,27 +99,36 @@ function movePlayer() {
   if (keys["a"]) dx = -player.speed;
   if (keys["d"]) dx = player.speed;
 
-  let proposedBlocks = player.blocks.map(block => ({
-    x: block.x + dx,
-    y: block.y + dy
-  }));
+  // First try diagonal movement
+  if (dx !== 0 && dy !== 0) {
+    let proposedBlocks = player.blocks.map(block => ({
+      x: block.x + dx,
+      y: block.y + dy
+    }));
 
-  let collisionDetected = proposedBlocks.some(pb => isColliding(pb));
+    let collisionDetected = proposedBlocks.some(pb => isColliding(pb, dx, dy));
 
-  if (!collisionDetected) {
-    for (let block of player.blocks) {
-      block.x += dx;
-      block.y += dy;
-    }
-  } else if (dx !== 0 && dy !== 0) {
-    let proposedX = player.blocks.map(block => ({ x: block.x + dx, y: block.y }));
-    if (!proposedX.some(pb => isColliding(pb))) {
-      for (let block of player.blocks) block.x += dx;
-    } else {
-      let proposedY = player.blocks.map(block => ({ x: block.x, y: block.y + dy }));
-      if (!proposedY.some(pb => isColliding(pb))) {
-        for (let block of player.blocks) block.y += dy;
+    if (!collisionDetected) {
+      for (let block of player.blocks) {
+        block.x += dx;
+        block.y += dy;
       }
+      return;
+    }
+  }
+
+  // If diagonal movement failed or not attempted, try axis-aligned movement
+  if (dx !== 0) {
+    let proposedX = player.blocks.map(block => ({ x: block.x + dx, y: block.y }));
+    if (!proposedX.some(pb => isColliding(pb, dx, 0))) {
+      for (let block of player.blocks) block.x += dx;
+    }
+  }
+  
+  if (dy !== 0) {
+    let proposedY = player.blocks.map(block => ({ x: block.x, y: block.y + dy }));
+    if (!proposedY.some(pb => isColliding(pb, 0, dy))) {
+      for (let block of player.blocks) block.y += dy;
     }
   }
 }
@@ -784,7 +797,7 @@ function checkProjectileCollisions() {
 // Collision Detection
 //-------------------------------------------------------------------------------------
 
-function isColliding(block) {
+function isColliding(block, dx = 0, dy = 0) {
   // Boundary check (keep strict)
   if (block.x < 0 || block.y < 0 || 
       block.x + TILE_SIZE > canvas.width || 
@@ -792,24 +805,27 @@ function isColliding(block) {
     return true;
   }
 
-  // More lenient collision with white pieces
-  const COLLISION_BUFFER = 6;
-
   // Check against tetris pieces (white)
   for (let piece of tetrisPieces) {
     for (let tBlock of piece.blocks) {
-      const buffer = piece.color === "white" ? COLLISION_BUFFER : 0;
+      // Use HEAD_ON_COLLISION_BUFFER for white pieces
+      const buffer = piece.color === "white" ? HEAD_ON_COLLISION_BUFFER : 0;
       
       if (block.x < tBlock.x + TILE_SIZE - buffer &&
           block.x + TILE_SIZE > tBlock.x + buffer &&
           block.y < tBlock.y + TILE_SIZE - buffer &&
           block.y + TILE_SIZE > tBlock.y + buffer) {
+        // If dashing, destroy the white piece
+        if (isDashing && piece.color === "white") {
+          tetrisPieces.splice(tetrisPieces.indexOf(piece), 1);
+          return false;
+        }
         return true;
       }
     }
   }
 
-  // Only check enemies when not rotating (they're handled separately during rotation)
+  // Enemy collision check remains the same
   if (!rotating) {
     return enemyPieces.some(enemy =>
       enemy.blocks.some(eBlock =>
@@ -824,41 +840,59 @@ function isColliding(block) {
 }
 
 function checkCollisions() {
-  const MERGE_BUFFER = 8; // Increased from 4
+  // Only check when player is moving
+  const isMoving = keys["w"] || keys["a"] || keys["s"] || keys["d"];
+  if (!isMoving) return;
+
+  // Determine movement direction
+  let moveDir = {x: 0, y: 0};
+  if (keys["w"]) moveDir.y = -1;
+  if (keys["s"]) moveDir.y = 1;
+  if (keys["a"]) moveDir.x = -1;
+  if (keys["d"]) moveDir.x = 1;
 
   for (let i = tetrisPieces.length - 1; i >= 0; i--) {
     const piece = tetrisPieces[i];
-    let shouldMerge = false;
-
-    // Only apply buffer to white pieces
-    const buffer = piece.color === "white" ? MERGE_BUFFER : 0;
+    if (piece.color !== "white") continue;
 
     for (let pBlock of player.blocks) {
       for (let tBlock of piece.blocks) {
-        const dx = Math.abs(pBlock.x - tBlock.x);
-        const dy = Math.abs(pBlock.y - tBlock.y);
+        // Calculate distances between blocks
+        const xDist = Math.abs(pBlock.x - tBlock.x);
+        const yDist = Math.abs(pBlock.y - tBlock.y);
         
-        // More lenient alignment checks for white pieces
-        const alignedVertically = dx < buffer && Math.abs(dy - TILE_SIZE) < buffer;
-        const alignedHorizontally = dy < buffer && Math.abs(dx - TILE_SIZE) < buffer;
+        // Check if blocks are aligned in movement direction with buffer
+        const isAlignedInMoveDir = 
+          (moveDir.x !== 0 && yDist < HEAD_ON_COLLISION_BUFFER) ||  // Moving horizontally
+          (moveDir.y !== 0 && xDist < HEAD_ON_COLLISION_BUFFER);    // Moving vertically
 
-        if (alignedVertically || alignedHorizontally) {
-          shouldMerge = true;
-          break;
+        // Check if blocks are about to collide in movement direction with buffer
+        const willCollide = 
+          (moveDir.x > 0 && 
+           pBlock.x + TILE_SIZE <= tBlock.x + HEAD_ON_COLLISION_BUFFER && 
+           pBlock.x + TILE_SIZE >= tBlock.x - SIDE_COLLISION_TOLERANCE) ||  // Moving right
+          (moveDir.x < 0 && 
+           pBlock.x >= tBlock.x + TILE_SIZE - HEAD_ON_COLLISION_BUFFER && 
+           pBlock.x <= tBlock.x + TILE_SIZE + SIDE_COLLISION_TOLERANCE) ||  // Moving left
+          (moveDir.y > 0 && 
+           pBlock.y + TILE_SIZE <= tBlock.y + HEAD_ON_COLLISION_BUFFER && 
+           pBlock.y + TILE_SIZE >= tBlock.y - SIDE_COLLISION_TOLERANCE) ||  // Moving down
+          (moveDir.y < 0 && 
+           pBlock.y >= tBlock.y + TILE_SIZE - HEAD_ON_COLLISION_BUFFER && 
+           pBlock.y <= tBlock.y + TILE_SIZE + SIDE_COLLISION_TOLERANCE);    // Moving up
+
+        if (isAlignedInMoveDir && willCollide) {
+          // Merge the white piece with player
+          player.blocks.push(...piece.blocks.map(b => ({
+            x: Math.round(b.x / TILE_SIZE) * TILE_SIZE,
+            y: Math.round(b.y / TILE_SIZE) * TILE_SIZE
+          })));
+          tetrisPieces.splice(i, 1);
+          adjustPlayerShape();
+          removeDisconnectedBlocks();
+          return;
         }
       }
-      if (shouldMerge) break;
-    }
-
-    if (shouldMerge) {
-      player.blocks.push(...piece.blocks.map(b => ({
-        x: Math.round(b.x / TILE_SIZE) * TILE_SIZE,
-        y: Math.round(b.y / TILE_SIZE) * TILE_SIZE
-      })));
-      tetrisPieces.splice(i, 1);
-      adjustPlayerShape();
-      removeDisconnectedBlocks();
-      return;
     }
   }
 }
