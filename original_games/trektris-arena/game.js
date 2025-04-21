@@ -394,6 +394,32 @@ function drawProjectiles() {
   }
 }
 
+function drawPlayerSize() {
+  const size = player.blocks.length;
+  const text = `SIZE: ${size}`;
+  ctx.font = "bold 28px Arial";
+  
+  // Calculate text width for proper centering
+  const textWidth = ctx.measureText(text).width;
+  const boxWidth = textWidth + 40; // Add padding
+  const xPos = (canvas.width - boxWidth) / 2; // Center horizontally
+  
+  // Draw background rectangle (centered)
+  ctx.fillStyle = "rgba(0,0,0,0.5)";
+  ctx.fillRect(xPos, 10, boxWidth, 40);
+  
+  // Draw text (centered in the box)
+  ctx.fillStyle = "red";
+  ctx.textAlign = "center"; // Changed from "left" to "center"
+  ctx.textBaseline = "top";
+  ctx.fillText(text, canvas.width / 2, 15);
+  
+  // White outline
+  ctx.strokeStyle = "white";
+  ctx.lineWidth = 2;
+  ctx.strokeText(text, canvas.width / 2, 15);
+}
+
 //-------------------------------------------------------------------------------------
 // Game Objects (Tetris Pieces)
 //-------------------------------------------------------------------------------------
@@ -410,6 +436,7 @@ let lastSpawnTime = 0;
 
 // Enemy piece templates (same shapes as tetrisPieces)
 const enemyTemplates = [
+  { blocks: [{x:0,y:0}], name: "Dot" },
   // I-shape (3-5 variations)
   { blocks: [{x:0,y:0}, {x:20,y:0}, {x:40,y:0}], name: "I3" },
   { blocks: [{x:0,y:0}, {x:20,y:0}, {x:40,y:0}, {x:60,y:0}], name: "I4" },
@@ -887,6 +914,8 @@ function draw() {
   // Draw background stars
   drawStars();
 
+ drawPlayerSize();
+
   // Draw player with rotation
   const pivot = player.blocks[0];
   ctx.save();
@@ -924,10 +953,10 @@ function draw() {
     for (let block of enemy.blocks) {
       drawBlock(block.x, block.y, enemy.color);
       
-      // Optional: Draw enemy center point
+      // Draw enemy center point
       if (block === enemy.blocks[0]) {
         ctx.beginPath();
-        ctx.arc(block.x + TILE_SIZE/2, block.y + TILE_SIZE/2, 4, 0, Math.PI * 2); // Changed radius from 3 to 6
+        ctx.arc(block.x + TILE_SIZE/2, block.y + TILE_SIZE/2, 4, 0, Math.PI * 2);
         ctx.fillStyle = "black";
         ctx.fill();
       }
@@ -936,7 +965,6 @@ function draw() {
 
   // Draw all projectiles
   drawProjectiles();
-
 }
 
 //-------------------------------------------------------------------------------------
