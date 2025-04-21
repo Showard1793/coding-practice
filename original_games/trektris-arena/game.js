@@ -150,6 +150,11 @@ function updateRotation() {
   const t = Math.min(elapsed / ROTATION_DURATION, 1);
   playerRotation = targetRotation * t;
 
+  // Check for enemy collisions during rotation
+  if (t > 0.3 && t < 0.7) { // Only check during middle of rotation
+    checkRotationEnemyCollisions();
+  }
+
   if (t >= 1) {
     rotating = false;
     const pivot = player.blocks[0];
@@ -193,6 +198,59 @@ function updateRotation() {
     removeDisconnectedBlocks();
     playerRotation = 0;
     targetRotation = 0;
+  }
+}
+
+function checkRotationEnemyCollisions() {
+  if (!rotating) return;
+
+  const pivot = player.blocks[0];
+  const rotationDirection = targetRotation > 0 ? 1 : -1;
+  
+  // Check all player blocks against all enemy blocks during rotation
+  for (let i = enemyPieces.length - 1; i >= 0; i--) {
+    const enemy = enemyPieces[i];
+    let enemyHit = false;
+    
+    for (let enemyBlock of enemy.blocks) {
+      for (let playerBlock of player.blocks) {
+        // Calculate positions relative to pivot
+        const playerDx = playerBlock.x - pivot.x;
+        const playerDy = playerBlock.y - pivot.y;
+        const enemyDx = enemyBlock.x - pivot.x;
+        const enemyDy = enemyBlock.y - pivot.y;
+        
+        // Calculate angle differences
+        const playerAngle = Math.atan2(playerDy, playerDx);
+        const enemyAngle = Math.atan2(enemyDy, enemyDx);
+        const angleDiff = Math.abs(enemyAngle - playerAngle);
+        
+        // Check if enemy block is within the rotation path
+        const playerDist = Math.sqrt(playerDx*playerDx + playerDy*playerDy);
+        const enemyDist = Math.sqrt(enemyDx*enemyDx + enemyDy*enemyDy);
+        const distDiff = Math.abs(enemyDist - playerDist);
+        
+        if (angleDiff < Math.PI/4 &&      // Within 45 degree cone
+            distDiff < TILE_SIZE * 1.5 && // Within distance threshold
+            playerDist < TILE_SIZE * 4) { // Not too far away
+          enemyHit = true;
+          break;
+        }
+      }
+      if (enemyHit) break;
+    }
+    
+    if (enemyHit) {
+      // Convert enemy to white piece
+      tetrisPieces.push({
+        blocks: enemy.blocks.map(b => ({
+          x: Math.round(b.x / TILE_SIZE) * TILE_SIZE,
+          y: Math.round(b.y / TILE_SIZE) * TILE_SIZE
+        })),
+        color: "white"
+      });
+      enemyPieces.splice(i, 1);
+    }
   }
 }
 
@@ -661,12 +719,11 @@ function isColliding(block) {
   }
 
   // More lenient collision with white pieces
-  const COLLISION_BUFFER = 6; // Pixels of leeway (up from 4)
+  const COLLISION_BUFFER = 6;
 
   // Check against tetris pieces (white)
   for (let piece of tetrisPieces) {
     for (let tBlock of piece.blocks) {
-      // Only apply buffer to white pieces
       const buffer = piece.color === "white" ? COLLISION_BUFFER : 0;
       
       if (block.x < tBlock.x + TILE_SIZE - buffer &&
@@ -678,15 +735,18 @@ function isColliding(block) {
     }
   }
 
-  // Keep strict collision with enemies
-  return enemyPieces.some(enemy =>
-    enemy.blocks.some(eBlock =>
-      block.x < eBlock.x + TILE_SIZE &&
-      block.x + TILE_SIZE > eBlock.x &&
-      block.y < eBlock.y + TILE_SIZE &&
-      block.y + TILE_SIZE > eBlock.y
-    )
-  );
+  // Don't let enemies block rotation - they'll be converted instead
+  if (!rotating) {
+    return enemyPieces.some(enemy =>
+      enemy.blocks.some(eBlock =>
+        block.x < eBlock.x + TILE_SIZE &&
+        block.x + TILE_SIZE > eBlock.x &&
+        block.y < eBlock.y + TILE_SIZE &&
+        block.y + TILE_SIZE > eBlock.y
+      )
+    );
+  }
+  return false;
 }
 
 function checkCollisions() {
