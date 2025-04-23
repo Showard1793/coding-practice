@@ -67,11 +67,9 @@ const menuElements = {
     instructions: {
       text: [
         "GOAL: Grow your shape by collecting white blocks",
-        "CONTROLS:",
-        "WASD - Move",
-        "Mouse Wheel - Rotate",
-        "Left Click - Shoot",
-        "Space - Dash"
+        "",
+        "     WASD - Move          Mouse Wheel - Rotate",
+        "             Space - Dash           Left Click - Shoot               "
       ],
       y: 220
     }
