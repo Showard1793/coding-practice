@@ -42,6 +42,224 @@ document.addEventListener("keydown", (e) => keys[e.key] = true);
 document.addEventListener("keyup", (e) => keys[e.key] = false);
 
 //-------------------------------------------------------------------------------------
+// Start and Game Over Menus
+//-------------------------------------------------------------------------------------
+// Add these constants at the top with your other constants
+const logoImage = new Image();
+logoImage.src = "logo.png"; // Replace with the actual path
+
+const MENU_STATES = {
+  START: 0,
+  PLAYING: 1,
+  GAME_OVER: 2
+};
+let currentMenuState = MENU_STATES.START;
+let menuAnimationProgress = 0;
+let menuAnimationDuration = 2000; // 2 seconds
+let gameOverFreeze = false;
+let gameOverFreezeTime = 0;
+
+// Add these variables for menu elements
+const menuElements = {
+  start: {
+    image: logoImage, // reference to the Image object
+    button: { text: "Start Game", y: 150, clicked: false },
+    instructions: {
+      text: [
+        "GOAL: Grow your shape by collecting white blocks",
+        "",
+        "     WASD - Move          Mouse Wheel - Rotate",
+        "             Space - Dash           Left Click - Shoot               "
+      ],
+      y: 220
+    }
+  },
+  gameOver: {
+    title: { text: "Game Over!", y: 50 },
+    score: { text: "", y: 100 },
+    button: { text: "Play Again?", y: 150, clicked: false }
+  }
+};
+
+// Add this function to draw the menu
+function drawMenu() {
+  // Calculate menu dimensions based on animation progress
+  let menuWidth, menuHeight, menuX, menuY;
+  
+  if (currentMenuState === MENU_STATES.START || currentMenuState === MENU_STATES.GAME_OVER) {
+    const size = 1 - (currentMenuState === MENU_STATES.PLAYING ? menuAnimationProgress : 0);
+    menuWidth = canvas.height * size;
+    menuHeight = canvas.height * size;
+    menuX = (canvas.width - menuWidth) / 2;
+    menuY = (canvas.height - menuHeight) / 2;
+  } else {
+    // During animation, calculate shrinking dimensions
+    const playerCenterX = player.blocks[0].x + TILE_SIZE / 2;
+    const playerCenterY = player.blocks[0].y + TILE_SIZE / 2;
+    const startSize = canvas.height;
+    const endSize = TILE_SIZE;
+    const currentSize = startSize + (endSize - startSize) * menuAnimationProgress;
+    
+    menuWidth = currentSize;
+    menuHeight = currentSize;
+    menuX = playerCenterX - currentSize / 2;
+    menuY = playerCenterY - currentSize / 2;
+  }
+
+  // Draw menu background (gray square)
+  ctx.fillStyle = "#666666";
+  ctx.fillRect(menuX, menuY, menuWidth, menuHeight);
+
+  // Calculate center circle position and radius
+  const centerX = menuX + menuWidth / 2;
+  const centerY = menuY + menuHeight / 2;
+  const circleRadius = Math.min(menuWidth, menuHeight) * 0.4;
+
+  // Draw black circle
+  ctx.fillStyle = "black";
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, circleRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Handle menu content based on state
+  if (currentMenuState === MENU_STATES.START || currentMenuState === MENU_STATES.GAME_OVER) {
+    const elements = currentMenuState === MENU_STATES.START ? 
+      menuElements.start : menuElements.gameOver;
+    
+    // Set text style
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "24px Arial";
+
+    // Draw logo image (start menu only)
+    if (currentMenuState === MENU_STATES.START && elements.image && elements.image.complete) {
+      const logo = elements.image;
+    
+      const naturalWidth = logo.naturalWidth;
+      const naturalHeight = logo.naturalHeight;
+      const aspectRatio = naturalWidth / naturalHeight;
+    
+      // Increased max dimensions for bigger display
+      const maxLogoWidth = canvas.width * .9;  // Twice the 0.8
+      const maxLogoHeight = canvas.height * .5; // Twice the 0.4
+    
+      let logoWidth = maxLogoWidth;
+      let logoHeight = logoWidth / aspectRatio;
+    
+      // Preserve aspect ratio by resizing if height is too tall
+      if (logoHeight > maxLogoHeight) {
+        logoHeight = maxLogoHeight;
+        logoWidth = logoHeight * aspectRatio;
+      }
+    
+      const logoX = (canvas.width - logoWidth) / 2;
+      const logoY = (canvas.height - logoHeight) * 0.4; // move it higher
+    
+      ctx.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
+    }
+    
+    
+    
+
+    // Draw title (game over only)
+    if (currentMenuState === MENU_STATES.GAME_OVER) {
+      ctx.font = "bold 36px Arial";
+      ctx.fillText(elements.title.text, centerX, centerY + elements.title.y);
+      ctx.font = "24px Arial";
+      ctx.fillText(elements.score.text, centerX, centerY + elements.score.y);
+    }
+
+    // Draw button
+    ctx.fillStyle = "#444444";
+    ctx.fillRect(centerX - 100, centerY + elements.button.y - 25, 200, 50);
+    ctx.fillStyle = "white";
+    ctx.font = "bold 24px Arial";
+    ctx.fillText(elements.button.text, centerX, centerY + elements.button.y);
+
+    // Draw instructions (start menu only)
+    if (currentMenuState === MENU_STATES.START) {
+      ctx.font = "18px Arial";
+      elements.instructions.text.forEach((line, i) => {
+        ctx.fillText(line, centerX, centerY + elements.instructions.y + i * 25);
+      });
+    }
+  } else if (currentMenuState === MENU_STATES.PLAYING && menuAnimationProgress < 1) {
+    // Animation in progress - fade out circle content
+    ctx.globalAlpha = 1 - menuAnimationProgress;
+    ctx.fillStyle = "black";
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, circleRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+
+// Add this function to handle menu clicks
+function handleMenuClick(x, y) {
+  if (currentMenuState === MENU_STATES.START || currentMenuState === MENU_STATES.GAME_OVER) {
+    const elements = currentMenuState === MENU_STATES.START ? 
+      menuElements.start : menuElements.gameOver;
+    
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const buttonY = centerY + elements.button.y;
+    
+    // Check if button was clicked
+    if (x > centerX - 100 && x < centerX + 100 &&
+        y > buttonY - 25 && y < buttonY + 25) {
+      elements.button.clicked = true;
+      startMenuAnimation();
+    }
+  }
+}
+
+// Add this function to start menu animation
+function startMenuAnimation() {
+  currentMenuState = MENU_STATES.PLAYING;
+  menuAnimationProgress = 0;
+  
+  // Reset game state if coming from game over
+  if (menuElements.gameOver.button.clicked) {
+    resetGame();
+  }
+}
+
+// Add this function to reset game state
+function resetGame() {
+  // Clear all game objects
+  tetrisPieces = [];
+  enemyPieces = [];
+  projectiles = [];
+  enemyProjectiles = [];
+  
+  // Reset player
+  player = {
+    blocks: [{
+      x: Math.floor(canvas.width / 2 / TILE_SIZE) * TILE_SIZE,
+      y: Math.floor(canvas.height / 2 / TILE_SIZE) * TILE_SIZE
+    }],
+    color: "#666666",
+    speed: normalSpeed
+  };
+  
+  // Reset other game state
+  playerRotation = 0;
+  targetRotation = 0;
+  rotating = false;
+  isDashing = false;
+  dashCooldown = false;
+  playerInvincible = false;
+}
+
+// Add this function to handle game over
+function gameOver() {
+  gameOverFreeze = true;
+  gameOverFreezeTime = performance.now();
+  menuElements.gameOver.score.text = `Final Size: ${player.blocks.length}`;
+}
+//-------------------------------------------------------------------------------------
 // Visual Effects (Stars Background)
 //-------------------------------------------------------------------------------------
 
@@ -63,6 +281,11 @@ function drawStars() {
 //-------------------------------------------------------------------------------------
 // Player Configuration and Mechanics
 //-------------------------------------------------------------------------------------
+// Add these variables near your other player variables
+let playerHitFlash = false;
+let playerHitFlashStart = 0;
+const PLAYER_HIT_FLASH_DURATION = 100; // 0.2 seconds
+
 
 let player = {
   blocks: [{
@@ -636,6 +859,10 @@ function checkEnemyProjectileCollisions() {
       const block = player.blocks[j];
       
       if (isProjectileHittingBlock(proj, block)) {
+        // Trigger flash effect
+        playerHitFlash = true;
+        playerHitFlashStart = performance.now();
+        
         if (j === 0) { // Main player block
           if (!playerInvincible) { // Only game over if not invincible
             gameOver();
@@ -650,6 +877,18 @@ function checkEnemyProjectileCollisions() {
         enemyProjectiles.splice(i, 1);
         break;
       }
+    }
+  }
+}
+
+// Add this function to update the flash effect
+function updateHitFlash() {
+  if (playerHitFlash) {
+    const now = performance.now();
+    const elapsed = now - playerHitFlashStart;
+    
+    if (elapsed >= PLAYER_HIT_FLASH_DURATION) {
+      playerHitFlash = false;
     }
   }
 }
@@ -940,6 +1179,7 @@ function drawBlock(x, y, color = "black") {
   ctx.strokeRect(x, y, TILE_SIZE, TILE_SIZE);
 }
 
+// Modify your draw function to skip drawing player during menu animation
 function draw() {
   // Clear canvas
   ctx.fillStyle = "black";
@@ -948,81 +1188,131 @@ function draw() {
   // Draw background stars
   drawStars();
 
- drawPlayerSize();
+  // Only draw player and game elements if in full gameplay
+  if (currentMenuState === MENU_STATES.PLAYING && menuAnimationProgress >= 1 && !gameOverFreeze) {
+    drawPlayerSize();
 
-  // Draw player with rotation
-  const pivot = player.blocks[0];
-  ctx.save();
-  ctx.translate(pivot.x + TILE_SIZE / 2, pivot.y + TILE_SIZE / 2);
-  ctx.rotate(playerRotation);
-  
-  // Draw player blocks
-  for (let i = 0; i < player.blocks.length; i++) {
-    const block = player.blocks[i];
-    const dx = block.x - pivot.x;
-    const dy = block.y - pivot.y;
+    // Draw player with rotation
+    const pivot = player.blocks[0];
+    ctx.save();
+    ctx.translate(pivot.x + TILE_SIZE / 2, pivot.y + TILE_SIZE / 2);
+    ctx.rotate(playerRotation);
     
-    // Main block drawing
-    drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, player.color);
-
-    // Draw center indicator on core block
-    if (i === 0) {
-      ctx.beginPath();
-      ctx.arc(dx, dy, 4, 0, Math.PI * 2);
-      ctx.fillStyle = "black";
-      ctx.fill();
-    }
-  }
-  ctx.restore();
-
-  // Draw static tetris pieces (white)
-  for (let piece of tetrisPieces) {
-    for (let block of piece.blocks) {
-      drawBlock(block.x, block.y, piece.color);
-    }
-  }
-
-  // Draw enemy pieces (colored)
-  for (let enemy of enemyPieces) {
-    for (let block of enemy.blocks) {
-      drawBlock(block.x, block.y, enemy.color);
+    // Draw player blocks
+    for (let i = 0; i < player.blocks.length; i++) {
+      const block = player.blocks[i];
+      const dx = block.x - pivot.x;
+      const dy = block.y - pivot.y;
       
-      // Draw enemy center point
-      if (block === enemy.blocks[0]) {
+      // Flash red if hit, otherwise use normal color
+      const blockColor = playerHitFlash ? "red" : player.color;
+      drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, blockColor);
+    
+      if (i === 0) {
         ctx.beginPath();
-        ctx.arc(block.x + TILE_SIZE/2, block.y + TILE_SIZE/2, 4, 0, Math.PI * 2);
+        ctx.arc(dx, dy, 4, 0, Math.PI * 2);
         ctx.fillStyle = "black";
         ctx.fill();
       }
     }
-  }
+    ctx.restore();
 
-  // Draw all projectiles
-  drawProjectiles();
+    // Draw static tetris pieces (white)
+    for (let piece of tetrisPieces) {
+      for (let block of piece.blocks) {
+        drawBlock(block.x, block.y, piece.color);
+      }
+    }
+
+    // Draw enemy pieces (colored)
+    for (let enemy of enemyPieces) {
+      for (let block of enemy.blocks) {
+        drawBlock(block.x, block.y, enemy.color);
+        
+        if (block === enemy.blocks[0]) {
+          ctx.beginPath();
+          ctx.arc(block.x + TILE_SIZE/2, block.y + TILE_SIZE/2, 4, 0, Math.PI * 2);
+          ctx.fillStyle = "black";
+          ctx.fill();
+        }
+      }
+    }
+
+    // Draw all projectiles
+    drawProjectiles();
+  }
 }
 
 //-------------------------------------------------------------------------------------
 // Game Loop and Initialization
 //-------------------------------------------------------------------------------------
 
+// Modify your gameLoop function to handle menu states
 function gameLoop() {
-  spawnEnemy();
-  spawnEnemyProjectile();
-  updateEnemies();
-  updateProjectiles();
-  checkProjectileCollisions();
-  checkEnemyProjectileCollisions();
-  movePlayer();
-  updateRotation();
-  checkCollisions();
+  const now = performance.now();
+  
+  // Handle game over freeze
+  if (gameOverFreeze) {
+    if (now - gameOverFreezeTime >= 1000) {
+      gameOverFreeze = false;
+      currentMenuState = MENU_STATES.GAME_OVER;
+      menuAnimationProgress = 0;
+    }
+    
+    // Draw red background during freeze
+    ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+  
+  // Update menu animation
+  if (currentMenuState === MENU_STATES.PLAYING && menuAnimationProgress < 1) {
+    menuAnimationProgress = Math.min(1, menuAnimationProgress + (16 / menuAnimationDuration));
+    if (menuAnimationProgress >= 1) {
+      // Animation complete, start game
+      menuElements.start.button.clicked = false;
+      menuElements.gameOver.button.clicked = false;
+    }
+  }
+  
+  // Only update game logic if actually playing
+  if (currentMenuState === MENU_STATES.PLAYING && menuAnimationProgress >= 1 && !gameOverFreeze) {
+    updateHitFlash();
+    spawnEnemy();
+    spawnEnemyProjectile();
+    updateEnemies();
+    updateProjectiles();
+    checkProjectileCollisions();
+    checkEnemyProjectileCollisions();
+    movePlayer();
+    updateRotation();
+    checkCollisions();
+  }
+  
+  // Always draw
   draw();
+  
+  // Draw menu if not in full gameplay
+  if (currentMenuState !== MENU_STATES.PLAYING || menuAnimationProgress < 1) {
+    drawMenu();
+  }
+  
   animationFrameId = requestAnimationFrame(gameLoop);
 }
 
+// Modify your init function to start with menu
 function init() {
-  resizeCanvas(); // set size first
-  centerPlayer(); // then center the player
-  animationFrameId = requestAnimationFrame(gameLoop); // Changed this line
+  resizeCanvas();
+  centerPlayer();
+  
+  // Set up click handler for menu
+  canvas.addEventListener("click", (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    handleMenuClick(x, y);
+  });
+  
+  animationFrameId = requestAnimationFrame(gameLoop);
 }
 
 init();
