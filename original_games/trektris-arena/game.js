@@ -53,6 +53,11 @@ const MENU_STATES = {
   PLAYING: 1,
   GAME_OVER: 2
 };
+let fadeToRed = false;
+let fadeAlpha = 0;
+let fadeStartTime = 0;
+const FADE_DURATION = 1000; // 1 second fade in/out
+
 let currentMenuState = MENU_STATES.START;
 let menuAnimationProgress = 0;
 let menuAnimationDuration = 2000; // 2 seconds
@@ -255,16 +260,37 @@ function resetGame() {
 // Update your gameOver function to this:
 function gameOver() {
   // Immediately go to game over state
-  currentMenuState = MENU_STATES.GAME_OVER;
-  menuAnimationProgress = 0;
-  
-  // Update the score text
+  fadeToRed = true;
+  fadeAlpha = 0;
+  fadeStartTime = performance.now();
   menuElements.gameOver.score.text = `Final Size: ${player.blocks.length}`;
   
   // Clear all enemies and projectiles by emptying the arrays
   enemyPieces.length = 0;
   enemyProjectiles.length = 0;
   projectiles.length = 0;
+}
+
+function updateFade() {
+  if (!fadeToRed) return;
+  
+  const now = performance.now();
+  const elapsed = now - fadeStartTime;
+  
+  if (elapsed < FADE_DURATION) {
+    // Fading to red
+    fadeAlpha = elapsed / FADE_DURATION;
+  } else if (elapsed < FADE_DURATION * 2) {
+    // Holding red
+    fadeAlpha = 1;
+  } else if (elapsed < FADE_DURATION * 3) {
+    // Fading back out
+    fadeAlpha = 1 - ((elapsed - FADE_DURATION * 2) / FADE_DURATION);
+  } else {
+    // Animation complete
+    fadeToRed = false;
+    currentMenuState = MENU_STATES.GAME_OVER;
+  }
 }
 //-------------------------------------------------------------------------------------
 // Visual Effects (Stars Background)
@@ -1242,7 +1268,14 @@ function draw() {
     drawProjectiles();
   }
   // Always draw menu if not in full gameplay
-  if (currentMenuState !== MENU_STATES.PLAYING || menuAnimationProgress < 1) {
+  // Draw red fade overlay if active
+  if (fadeToRed) {
+    ctx.fillStyle = `rgba(255, 0, 0, ${fadeAlpha})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Draw menu if needed
+  if (currentMenuState !== MENU_STATES.PLAYING) {
     drawMenu();
   }
 }
@@ -1255,8 +1288,7 @@ function draw() {
 function gameLoop() {
   const now = performance.now();
   
-  // Handle game over freeze
-// Update your game loop's freeze handling:
+  updateFade(); // Handle the red fade animation
   
   // Update menu animation
   if (currentMenuState === MENU_STATES.PLAYING && menuAnimationProgress < 1) {
@@ -1268,8 +1300,8 @@ function gameLoop() {
     }
   }
   
-  // Only update game logic if actually playing
-  if (currentMenuState === MENU_STATES.PLAYING && menuAnimationProgress >= 1) {
+  // Only update game logic if actually playing AND not in fade animation
+  if (currentMenuState === MENU_STATES.PLAYING && !fadeToRed) {
     updateHitFlash();
     spawnEnemy();
     spawnEnemyProjectile();
