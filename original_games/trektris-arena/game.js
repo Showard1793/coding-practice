@@ -281,6 +281,11 @@ function drawStars() {
 //-------------------------------------------------------------------------------------
 // Player Configuration and Mechanics
 //-------------------------------------------------------------------------------------
+// Add these variables near your other player variables
+let playerHitFlash = false;
+let playerHitFlashStart = 0;
+const PLAYER_HIT_FLASH_DURATION = 100; // 0.2 seconds
+
 
 let player = {
   blocks: [{
@@ -854,6 +859,10 @@ function checkEnemyProjectileCollisions() {
       const block = player.blocks[j];
       
       if (isProjectileHittingBlock(proj, block)) {
+        // Trigger flash effect
+        playerHitFlash = true;
+        playerHitFlashStart = performance.now();
+        
         if (j === 0) { // Main player block
           if (!playerInvincible) { // Only game over if not invincible
             gameOver();
@@ -868,6 +877,18 @@ function checkEnemyProjectileCollisions() {
         enemyProjectiles.splice(i, 1);
         break;
       }
+    }
+  }
+}
+
+// Add this function to update the flash effect
+function updateHitFlash() {
+  if (playerHitFlash) {
+    const now = performance.now();
+    const elapsed = now - playerHitFlashStart;
+    
+    if (elapsed >= PLAYER_HIT_FLASH_DURATION) {
+      playerHitFlash = false;
     }
   }
 }
@@ -1183,8 +1204,10 @@ function draw() {
       const dx = block.x - pivot.x;
       const dy = block.y - pivot.y;
       
-      drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, player.color);
-
+      // Flash red if hit, otherwise use normal color
+      const blockColor = playerHitFlash ? "red" : player.color;
+      drawBlock(dx - TILE_SIZE / 2, dy - TILE_SIZE / 2, blockColor);
+    
       if (i === 0) {
         ctx.beginPath();
         ctx.arc(dx, dy, 4, 0, Math.PI * 2);
@@ -1253,6 +1276,7 @@ function gameLoop() {
   
   // Only update game logic if actually playing
   if (currentMenuState === MENU_STATES.PLAYING && menuAnimationProgress >= 1 && !gameOverFreeze) {
+    updateHitFlash();
     spawnEnemy();
     spawnEnemyProjectile();
     updateEnemies();
