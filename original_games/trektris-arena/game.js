@@ -45,6 +45,9 @@ document.addEventListener("keyup", (e) => keys[e.key] = false);
 // Start and Game Over Menus
 //-------------------------------------------------------------------------------------
 // Add these constants at the top with your other constants
+const logoImage = new Image();
+logoImage.src = "logo.png"; // Replace with the actual path
+
 const MENU_STATES = {
   START: 0,
   PLAYING: 1,
@@ -59,7 +62,7 @@ let gameOverFreezeTime = 0;
 // Add these variables for menu elements
 const menuElements = {
   start: {
-    logoPlaceholder: true,
+    image: logoImage, // reference to the Image object
     button: { text: "Start Game", y: 150, clicked: false },
     instructions: {
       text: [
@@ -93,16 +96,16 @@ function drawMenu() {
     menuY = (canvas.height - menuHeight) / 2;
   } else {
     // During animation, calculate shrinking dimensions
-    const playerCenterX = player.blocks[0].x + TILE_SIZE/2;
-    const playerCenterY = player.blocks[0].y + TILE_SIZE/2;
+    const playerCenterX = player.blocks[0].x + TILE_SIZE / 2;
+    const playerCenterY = player.blocks[0].y + TILE_SIZE / 2;
     const startSize = canvas.height;
     const endSize = TILE_SIZE;
     const currentSize = startSize + (endSize - startSize) * menuAnimationProgress;
     
     menuWidth = currentSize;
     menuHeight = currentSize;
-    menuX = playerCenterX - currentSize/2;
-    menuY = playerCenterY - currentSize/2;
+    menuX = playerCenterX - currentSize / 2;
+    menuY = playerCenterY - currentSize / 2;
   }
 
   // Draw menu background (gray square)
@@ -110,8 +113,8 @@ function drawMenu() {
   ctx.fillRect(menuX, menuY, menuWidth, menuHeight);
 
   // Calculate center circle position and radius
-  const centerX = menuX + menuWidth/2;
-  const centerY = menuY + menuHeight/2;
+  const centerX = menuX + menuWidth / 2;
+  const centerY = menuY + menuHeight / 2;
   const circleRadius = Math.min(menuWidth, menuHeight) * 0.4;
 
   // Draw black circle
@@ -131,13 +134,35 @@ function drawMenu() {
     ctx.textBaseline = "middle";
     ctx.font = "24px Arial";
 
-    // Draw logo placeholder (start menu only)
-    if (currentMenuState === MENU_STATES.START && elements.logoPlaceholder) {
-      ctx.fillStyle = "#333333";
-      ctx.beginPath();
-      ctx.arc(centerX, centerY - 50, 50, 0, Math.PI * 2);
-      ctx.fill();
+    // Draw logo image (start menu only)
+    if (currentMenuState === MENU_STATES.START && elements.image && elements.image.complete) {
+      const logo = elements.image;
+    
+      const naturalWidth = logo.naturalWidth;
+      const naturalHeight = logo.naturalHeight;
+      const aspectRatio = naturalWidth / naturalHeight;
+    
+      // Increased max dimensions for bigger display
+      const maxLogoWidth = canvas.width * .9;  // Twice the 0.8
+      const maxLogoHeight = canvas.height * .5; // Twice the 0.4
+    
+      let logoWidth = maxLogoWidth;
+      let logoHeight = logoWidth / aspectRatio;
+    
+      // Preserve aspect ratio by resizing if height is too tall
+      if (logoHeight > maxLogoHeight) {
+        logoHeight = maxLogoHeight;
+        logoWidth = logoHeight * aspectRatio;
+      }
+    
+      const logoX = (canvas.width - logoWidth) / 2;
+      const logoY = (canvas.height - logoHeight) * 0.4; // move it higher
+    
+      ctx.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
     }
+    
+    
+    
 
     // Draw title (game over only)
     if (currentMenuState === MENU_STATES.GAME_OVER) {
@@ -171,6 +196,7 @@ function drawMenu() {
     ctx.globalAlpha = 1;
   }
 }
+
 
 // Add this function to handle menu clicks
 function handleMenuClick(x, y) {
