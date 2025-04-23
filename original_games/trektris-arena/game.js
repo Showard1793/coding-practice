@@ -56,11 +56,11 @@ const MENU_STATES = {
 let fadeToRed = false;
 let fadeAlpha = 0;
 let fadeStartTime = 0;
-const FADE_DURATION = 1000; // 1 second fade in/out
+const FADE_DURATION = 500; // 1 second fade in/out
 
 let currentMenuState = MENU_STATES.START;
 let menuAnimationProgress = 0;
-let menuAnimationDuration = 2000; // 2 seconds
+let menuAnimationDuration = 1000; // 2 seconds
 
 // Add these variables for menu elements
 const menuElements = {
@@ -78,9 +78,21 @@ const menuElements = {
     }
   },
   gameOver: {
-    title: { text: "Game Over!", y: 50 },
-    score: { text: "", y: 100 },
-    button: { text: "Play Again?", y: 150, clicked: false }
+    title: { 
+      text: "GAME OVER!", 
+      y: -80,  // Higher up (negative moves it up from center)
+      size: "72px"  // Larger font
+    },
+    score: { 
+      text: "", 
+      y: -20,  // Closer to title
+      size: "36px"  // Larger than before
+    },
+    button: { 
+      text: "PLAY AGAIN?", 
+      y: 80,  // Adjusted to match new layout
+      clicked: false 
+    }
   }
 };
 
@@ -283,10 +295,6 @@ function updateFade() {
   } else if (elapsed < FADE_DURATION * 2) {
     // Holding red
     fadeAlpha = 1;
-  } else if (elapsed < FADE_DURATION * 3) {
-    // Fading back out
-    fadeAlpha = 1 - ((elapsed - FADE_DURATION * 2) / FADE_DURATION);
-  } else {
     // Animation complete
     fadeToRed = false;
     currentMenuState = MENU_STATES.GAME_OVER;
