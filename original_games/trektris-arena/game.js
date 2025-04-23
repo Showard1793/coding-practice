@@ -56,8 +56,6 @@ const MENU_STATES = {
 let currentMenuState = MENU_STATES.START;
 let menuAnimationProgress = 0;
 let menuAnimationDuration = 2000; // 2 seconds
-let gameOverFreeze = false;
-let gameOverFreezeTime = 0;
 
 // Add these variables for menu elements
 const menuElements = {
@@ -197,6 +195,7 @@ function drawMenu() {
 
 
 // Add this function to handle menu clicks
+// Update your handleMenuClick function:
 function handleMenuClick(x, y) {
   if (currentMenuState === MENU_STATES.START || currentMenuState === MENU_STATES.GAME_OVER) {
     const elements = currentMenuState === MENU_STATES.START ? 
@@ -206,7 +205,6 @@ function handleMenuClick(x, y) {
     const centerY = canvas.height / 2;
     const buttonY = centerY + elements.button.y;
     
-    // Check if button was clicked
     if (x > centerX - 100 && x < centerX + 100 &&
         y > buttonY - 25 && y < buttonY + 25) {
       elements.button.clicked = true;
@@ -244,7 +242,7 @@ function resetGame() {
     speed: normalSpeed
   };
   
-  // Reset other game state
+  // Reset game state
   playerRotation = 0;
   targetRotation = 0;
   rotating = false;
@@ -254,10 +252,19 @@ function resetGame() {
 }
 
 // Add this function to handle game over
+// Update your gameOver function to this:
 function gameOver() {
-  gameOverFreeze = true;
-  gameOverFreezeTime = performance.now();
+  // Immediately go to game over state
+  currentMenuState = MENU_STATES.GAME_OVER;
+  menuAnimationProgress = 0;
+  
+  // Update the score text
   menuElements.gameOver.score.text = `Final Size: ${player.blocks.length}`;
+  
+  // Clear all enemies and projectiles by emptying the arrays
+  enemyPieces.length = 0;
+  enemyProjectiles.length = 0;
+  projectiles.length = 0;
 }
 //-------------------------------------------------------------------------------------
 // Visual Effects (Stars Background)
@@ -580,7 +587,7 @@ function startDash() {
 // Projectile Mechanics
 //-------------------------------------------------------------------------------------
 
-const projectiles = [];
+let projectiles = [];
 canvas.addEventListener("click", (e) => {
   const rect = canvas.getBoundingClientRect();
   const mouseX = e.clientX - rect.left;
@@ -666,7 +673,7 @@ let tetrisPieces = [];
 // Enemy Pieces Configuration
 //-------------------------------------------------------------------------------------
 
-const enemyPieces = [];
+let enemyPieces = [];
 const ENEMY_SPAWN_RATE = 500; // ms between spawns
 let lastSpawnTime = 0;
 
@@ -854,22 +861,21 @@ function checkEnemyProjectileCollisions() {
   for (let i = enemyProjectiles.length-1; i >= 0; i--) {
     const proj = enemyProjectiles[i];
     
-    // Check collision with player blocks
     for (let j = player.blocks.length-1; j >= 0; j--) {
       const block = player.blocks[j];
       
       if (isProjectileHittingBlock(proj, block)) {
-        // Trigger flash effect
         playerHitFlash = true;
         playerHitFlashStart = performance.now();
         
         if (j === 0) { // Main player block
-          if (!playerInvincible) { // Only game over if not invincible
-            gameOver();
+          if (!playerInvincible) {
+            gameOver(); // Immediately trigger game over
+            enemyProjectiles.splice(i, 1);
             return;
           }
-        } else { // Connected block
-          if (!playerInvincible) { // Only remove block if not invincible
+        } else {
+          if (!playerInvincible) {
             player.blocks.splice(j, 1);
             removeDisconnectedBlocks();
           }
@@ -896,12 +902,6 @@ function updateHitFlash() {
 function isProjectileHittingBlock(proj, block) {
   return proj.x > block.x && proj.x < block.x + TILE_SIZE &&
          proj.y > block.y && proj.y < block.y + TILE_SIZE;
-}
-
-function gameOver() {
-  alert("Game Over! Refresh to play again.");
-  // Stop the game loop
-  cancelAnimationFrame(animationFrameId);
 }
 
 //-------------------------------------------------------------------------------------
@@ -954,7 +954,7 @@ function removeDisconnectedBlocks() {
 //-------------------------------------------------------------------------------------
 // Enemy Projectile Configuration
 //-------------------------------------------------------------------------------------
-const enemyProjectiles = [];
+let enemyProjectiles = [];
 const ENEMY_FIRE_RATE = 300; // ms between shots
 let lastEnemyFireTime = 0;
 
@@ -1189,7 +1189,7 @@ function draw() {
   drawStars();
 
   // Only draw player and game elements if in full gameplay
-  if (currentMenuState === MENU_STATES.PLAYING && menuAnimationProgress >= 1 && !gameOverFreeze) {
+  if (currentMenuState === MENU_STATES.PLAYING && menuAnimationProgress >= 1) {
     drawPlayerSize();
 
     // Draw player with rotation
@@ -1241,6 +1241,10 @@ function draw() {
     // Draw all projectiles
     drawProjectiles();
   }
+  // Always draw menu if not in full gameplay
+  if (currentMenuState !== MENU_STATES.PLAYING || menuAnimationProgress < 1) {
+    drawMenu();
+  }
 }
 
 //-------------------------------------------------------------------------------------
@@ -1252,17 +1256,7 @@ function gameLoop() {
   const now = performance.now();
   
   // Handle game over freeze
-  if (gameOverFreeze) {
-    if (now - gameOverFreezeTime >= 1000) {
-      gameOverFreeze = false;
-      currentMenuState = MENU_STATES.GAME_OVER;
-      menuAnimationProgress = 0;
-    }
-    
-    // Draw red background during freeze
-    ctx.fillStyle = "rgba(255, 0, 0, 0.3)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
+// Update your game loop's freeze handling:
   
   // Update menu animation
   if (currentMenuState === MENU_STATES.PLAYING && menuAnimationProgress < 1) {
@@ -1275,7 +1269,7 @@ function gameLoop() {
   }
   
   // Only update game logic if actually playing
-  if (currentMenuState === MENU_STATES.PLAYING && menuAnimationProgress >= 1 && !gameOverFreeze) {
+  if (currentMenuState === MENU_STATES.PLAYING && menuAnimationProgress >= 1) {
     updateHitFlash();
     spawnEnemy();
     spawnEnemyProjectile();
