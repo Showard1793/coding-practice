@@ -1,9 +1,7 @@
 import random
 
-choice = ["Rock","Paper","Scissor"]
-
 player_choice = int(input("What will you choose?\n 1)Rock\n 2)Paper\n 3)Scissor \n"))
-opponent_choice = (random.choice(choice))
+opponent_choice = (random.choice(["Rock","Paper","Scissor"]))
 
 #Player chooses Rock
 if player_choice == 1 and opponent_choice == "Scissor":
