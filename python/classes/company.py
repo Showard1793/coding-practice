@@ -3,6 +3,9 @@ from employee import Employee
 class Company: 
     def __init__(self):
         self.employees = []
+        self.team1 = []
+        self.team2 = []
+        self.team3 = []
 
     def add_employee(self, new_employee):
         self.employees.append(new_employee)
@@ -20,6 +23,18 @@ class Company:
         for i in self.employees:
             print(i.fname, i.lname)
         print('-------------------------')
+
+    def add_to_team(self):
+       print("Who would you like to add to a team? \n")
+       fname_to_be_added = input("First name? \n")
+       lname_to_be_added = input("Last name? \n")
+       team_number = input("Which team (1, 2, or 3)? \n")
+
+       for employee in self.employees: 
+           if employee.fname == fname_to_be_added and employee.lname == lname_to_be_added:
+               getattr(self, "team" + team_number).append(employee)
+               print(f"{fname_to_be_added} {lname_to_be_added} added to Team {team_number}.\n")
+               return
     
     def pay_employees(self):
         print("Paying Employees:")
@@ -45,6 +60,8 @@ def main():
     my_company.list_employees()
 
     my_company.pay_employees()
+
+    my_company.add_to_team()
 
     
 main()
