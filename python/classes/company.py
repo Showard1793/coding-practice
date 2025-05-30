@@ -35,6 +35,8 @@ class Company:
                getattr(self, "team" + team_number).append(employee)
                print(f"{fname_to_be_added} {lname_to_be_added} added to Team {team_number}.\n")
                return
+           
+       print(f"{fname_to_be_added} {lname_to_be_added} not found among employees.\n")
     
     def pay_employees(self):
         print("Paying Employees:")
