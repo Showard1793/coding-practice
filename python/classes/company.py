@@ -41,21 +41,29 @@ class Company:
             print('-------------------------')
             add_more = int(input("Would you like to add another? (no = 0, yes = 1) \n"))
 
-    def fire_employee(self, first_name, last_name):
+    def fire_employee(self):
+        fire_more = 1
         print('-------------------------')
-        for employee in self.employees:
-            if employee.fname == first_name and employee.lname == last_name:
-                self.employees.remove(employee)
-                print(f"{first_name} {last_name} has been fired.\n")
-                return
-        print(f"{first_name} {last_name} not found.\n")
-        print('-------------------------')
+        while fire_more == 1:
+            employee_fname = input("First name? \n")
+            employee_lname = input("Last name? \n")
+            for employee in self.employees:
+                if employee.fname == employee_fname and employee.lname == employee_lname:
+                    self.employees.remove(employee)
+                    print(f"{employee_fname} {employee_lname} has been fired.\n")
+                    print('-------------------------')
+                    fire_more = int(input("Would you like to fire another employee? (no = 0, yes = 1) \n"))
+            print('-------------------------')
+            print(f"{employee_fname} {employee_lname} not found.")
+            print('-------------------------')
+
+
 
     def list_employees(self):
         print('-------------------------')
         print("Current Employees: \n")
         for i in self.employees:
-            print(i.fname, i.lname + " // Annual Salary: " + str(i.salary))
+            print(i.fname, i.lname + " // Annual Salary: " + str(f"Amount:, ${i.salary:,.2f}"))
             print('-------------------------')
 
     def add_to_team(self):
